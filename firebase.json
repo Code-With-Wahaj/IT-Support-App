@@ -1,0 +1,37 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "aptech-it-support",
+          "appId": "1:416774545611:android:bf82fa07363954db997b4e",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "aptech-it-support",
+          "configurations": {
+            "android": "1:416774545611:android:bf82fa07363954db997b4e",
+            "web": "1:416774545611:web:0d6fd58723dc987b997b4e",
+            "windows": "1:416774545611:web:63c889c71ca629f7997b4e"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
