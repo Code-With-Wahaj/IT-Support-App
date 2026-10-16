@@ -11,7 +11,7 @@ Future<String?> saveHelper(List<int> bytes, String fileName) async {
   final url = html.Url.createObjectUrlFromBlob(blob);
 
   // 3. Create an Anchor (<a>) tag to trigger download
-  final anchor = html.AnchorElement(href: url)
+  html.AnchorElement(href: url)
     ..setAttribute('download', fileName)
     ..click(); // Simulate click
 

@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:aptech_it_support/screens/admin/manage_users_screen.dart';
-import 'package:aptech_it_support/screens/chats/chats_screen.dart';
-import 'package:aptech_it_support/screens/dashboard/filter_complaints.dart';
-import 'package:aptech_it_support/screens/labs/lab_list_screen.dart';
-import '../screens/admin/admin_add_user.dart';
-import '../screens/auth/forgot_password_screen.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/auth/signup_screen.dart';
-import '../screens/dashboard/dashboard_screen.dart';
-import '../screens/notifications/notification_panel_screen.dart';
 import '../screens/splash_screen.dart';
+import '../screens/onboarding/onboarding_screen.dart';
+import '../screens/auth/login_screen.dart';
+import '../screens/auth/forgot_password_screen.dart';
+import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/chats/chats_screen.dart';
+import '../screens/dashboard/filter_complaints.dart';
+import '../screens/admin/admin_add_user.dart';
+import '../screens/admin/manage_users_screen.dart';
+import '../screens/labs/lab_list_screen.dart';
+import '../screens/notifications/notification_panel_screen.dart';
 
 class Routes {
   static const String splash = '/';
+  static const String onboarding = '/onboarding';
   static const String login = '/login';
-  static const String signup = '/signup';
   static const String forgot = '/forgot';
   static const String dashboard = '/dashboard';
   static const String chats = '/chats';
@@ -28,8 +28,8 @@ class Routes {
 
 final Map<String, Widget Function(BuildContext)> routes = {
   Routes.splash: (_) => const SplashScreen(),
-  Routes.login: (_) => LoginScreen(),
-  Routes.signup: (_) => SignupScreen(),
+  Routes.onboarding: (_) => const OnboardingScreen(),
+  Routes.login: (_) => const LoginScreen(),
   Routes.forgot: (_) => const ForgotPasswordScreen(),
   Routes.dashboard: (_) => const DashboardScreen(),
   Routes.chats: (_) => const ChatScreen(),

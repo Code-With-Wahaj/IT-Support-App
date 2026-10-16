@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:sizer/sizer.dart';
+import 'package:provider/provider.dart';
+import '../../providers/app_data_provider.dart';
 import '../../services/complains_servcie.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 
+/// Offline-Cached & Chip-Filtered IT Hub Group Chat.
+/// Reads directly from AppDataProvider's local cache + single delta listener
+/// so opening or chatting NEVER re-fetches the whole Firestore collection!
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -18,398 +21,379 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController scrollController = ScrollController();
   final ComplaintService complaintService = ComplaintService();
 
-  User? user;
-  String userName = '';
-  String role = '';
+  String _selectedStatusFilter = "All";
 
-  @override
-  void initState() {
-    super.initState();
-    fetchUser();
-  }
-
-  fetchUser() async {
-    user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .get();
-      setState(() {
-        userName = doc['name'] ?? '';
-        role = doc['role'] ?? '';
-      });
-    }
-  }
-
-  sendMessage() async {
-    final message = messageC.text.trim();
-    if (message.isEmpty) return;
-
-    // Clear the text field IMMEDIATELY for responsive UI
-    messageC.clear();
-
-    await complaintService.createComplaint(message: message);
-
-    // Scroll after message is sent
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scrollController.hasClients) {
         scrollController.animateTo(
-          scrollController.position.maxScrollExtent + 100,
-          duration: const Duration(milliseconds: 300),
+          scrollController.position.maxScrollExtent + 120,
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
     });
   }
 
-  updateStatus(String complaintId, String newStatus) async {
-    if (user == null) return;
+  Future<void> _sendMessage(AppDataProvider appData) async {
+    final text = messageC.text.trim();
+    if (text.isEmpty) return;
+    messageC.clear();
+
+    await complaintService.createComplaint(message: text);
+    _scrollToBottom();
+  }
+
+  Future<void> _updateStatus(
+    AppDataProvider appData,
+    String complaintId,
+    String newStatus,
+  ) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
     await complaintService.updateStatus(
       complaintId: complaintId,
       newStatus: newStatus,
-      updaterId: user!.uid,
-      updaterName: userName,
-      resolverId: newStatus.toLowerCase() == 'resolved' ? user!.uid : null,
-      resolverName: newStatus.toLowerCase() == 'resolved' ? userName : null,
+      updaterId: uid,
+      updaterName: appData.userName,
+      resolverId: newStatus.toLowerCase() == 'resolved' ? uid : null,
+      resolverName:
+          newStatus.toLowerCase() == 'resolved' ? appData.userName : null,
     );
   }
 
-  Color getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return AppTheme.errorColor;
-      case 'in progress':
-        return AppTheme.warningColor;
-      case 'resolved':
-        return AppTheme.successColor;
-      default:
-        return AppTheme.textTertiary;
-    }
-  }
-
-  String formatTimestamp(Timestamp? ts) {
-    if (ts == null) return '';
-    final dt = ts.toDate();
+  String _formatTime(dynamic tsMs) {
+    if (tsMs == null) return '';
+    final dt = DateTime.fromMillisecondsSinceEpoch(
+      tsMs is int ? tsMs : DateTime.now().millisecondsSinceEpoch,
+    );
     return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(title: const Text("IT Hub Group Chat")),
-        // CHANGED: Moved ResponsiveWrapper inside the Column so it only affects the list
-        body: Column(
+    final appData = context.watch<AppDataProvider>();
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final canUpdateStatus =
+        appData.userRole.toLowerCase() == 'it technician' || appData.isAdmin;
+
+    final allMessages = appData.complaintsOldestFirst;
+    final messages = _selectedStatusFilter == "All"
+        ? allMessages
+        : allMessages
+            .where(
+              (m) =>
+                  (m['status'] ?? 'Pending').toString().toLowerCase() ==
+                  _selectedStatusFilter.toLowerCase(),
+            )
+            .toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: ResponsiveWrapper(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: complaintService.getComplaintsStream(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final docs = snapshot.data!.docs;
-
-                    if (docs.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 80,
-                              color: AppTheme.textTertiary,
-                            ),
-                            SizedBox(height: 2.h),
-                            Text(
-                              'No messages yet',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 16.sp,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 1.h),
-                            Text(
-                              'Start the conversation!',
-                              style: TextStyle(
-                                color: AppTheme.textTertiary,
-                                fontSize: 14.sp,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    // Scroll to bottom once list is built
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (scrollController.hasClients) {
-                        scrollController.jumpTo(
-                          scrollController.position.maxScrollExtent,
-                        );
-                      }
-                    });
-
-                    return ListView.builder(
-                      controller: scrollController,
-                      padding: EdgeInsets.symmetric(
-                        vertical: 2.h,
-                        horizontal: ResponsiveUtils.getResponsivePadding(
-                          context,
-                        ),
-                      ),
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        final data = docs[index];
-                        final isMe = data['facultyId'] == user?.uid;
-
-                        return Container(
-                          margin: EdgeInsets.only(bottom: 1.5.h),
-                          child: Column(
-                            crossAxisAlignment: isMe
-                                ? CrossAxisAlignment.end
-                                : CrossAxisAlignment.start,
-                            children: [
-                              Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  // Message bubble
-                                  ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth:
-                                      ResponsiveUtils.isDesktop(context)
-                                          ? 500
-                                          : 75.w,
-                                    ),
-                                    child: Container(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 1.5.h,
-                                        horizontal: 4.w,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isMe
-                                            ? AppTheme.primaryColor
-                                            : AppTheme.cardColor,
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(16),
-                                          topRight: Radius.circular(16),
-                                          bottomLeft: Radius.circular(
-                                            isMe ? 16 : 4,
-                                          ),
-                                          bottomRight: Radius.circular(
-                                            isMe ? 4 : 16,
-                                          ),
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.1,
-                                            ),
-                                            blurRadius: 6,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            data['facultyName'] ?? '',
-                                            style: TextStyle(
-                                              fontSize: 14.sp,
-                                              fontWeight: FontWeight.bold,
-                                              color: isMe
-                                                  ? Colors.white70
-                                                  : AppTheme.accentColor,
-                                            ),
-                                          ),
-                                          SizedBox(height: 0.5.h),
-                                          Text(
-                                            data['message'] ?? '',
-                                            style: TextStyle(
-                                              fontSize: 15.sp,
-                                              color: isMe
-                                                  ? Colors.white
-                                                  : AppTheme.textPrimary,
-                                              height: 1.3,
-                                            ),
-                                          ),
-                                          SizedBox(height: 0.5.h),
-                                          Align(
-                                            alignment: Alignment.bottomRight,
-                                            child: Text(
-                                              formatTimestamp(
-                                                data['timestamp'],
-                                              ),
-                                              style: TextStyle(
-                                                fontSize: 12.sp,
-                                                color: isMe
-                                                    ? Colors.white60
-                                                    : AppTheme.textTertiary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  // Status chip
-                                  Positioned(
-                                    top: -8,
-                                    right: 0,
-                                    child: GestureDetector(
-                                      onTapDown: (details) async {
-                                        if (role.toLowerCase() !=
-                                            'it technician')
-                                          return;
-
-                                        final selected = await showMenu<String>(
-                                          context: context,
-                                          position: RelativeRect.fromLTRB(
-                                            details.globalPosition.dx,
-                                            details.globalPosition.dy,
-                                            details.globalPosition.dx,
-                                            details.globalPosition.dy,
-                                          ),
-                                          items: [
-                                            const PopupMenuItem(
-                                              value: 'Pending',
-                                              child: Text('Pending'),
-                                            ),
-                                            const PopupMenuItem(
-                                              value: 'In Progress',
-                                              child: Text('In Progress'),
-                                            ),
-                                            const PopupMenuItem(
-                                              value: 'Resolved',
-                                              child: Text('Resolved'),
-                                            ),
-                                          ],
-                                        );
-                                        if (selected != null) {
-                                          updateStatus(
-                                            data['complaintId'],
-                                            selected,
-                                          );
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 2.w,
-                                          vertical: 0.5.h,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: getStatusColor(
-                                            data['status'] ?? 'Pending',
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(
-                                                0.1,
-                                              ),
-                                              blurRadius: 4,
-                                            ),
-                                          ],
-                                        ),
-                                        child: Text(
-                                          data['status'] ?? 'Pending',
-                                          style: TextStyle(
-                                            fontSize: 13.sp,
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ),
-            // CHANGED: Input Container is now outside ResponsiveWrapper to take full width
-            Container(
-              decoration: BoxDecoration(
-                color: AppTheme.cardColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: SafeArea(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: ResponsiveUtils.getResponsivePadding(context),
-                    vertical: 1.h,
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppTheme.backgroundColor,
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: TextField(
-                            controller: messageC,
-                            maxLines: null,
-                            textCapitalization: TextCapitalization.sentences,
-                            decoration: InputDecoration(
-                              hintText: "Type a message...",
-                              hintStyle: TextStyle(
-                                color: AppTheme.textTertiary,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(24),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 4.w,
-                                vertical: 1.5.h,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 2.w),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          onPressed: sendMessage,
-                          icon: Icon(Icons.send, color: Colors.white),
-                          iconSize: 22.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            Text("IT Hub Dispatch Chat", style: TextStyle(fontSize: 17)),
+            Text(
+              "Local Delta-Cache Active • Auto Lab & Issue Detection",
+              style: TextStyle(fontSize: 11, color: AppTheme.accentGlow),
             ),
           ],
         ),
-        resizeToAvoidBottomInset: true,
+      ),
+      body: Column(
+        children: [
+          // Top Filter Chips Bar
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: AppTheme.borderColor)),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: ["All", "Pending", "In Progress", "Resolved"]
+                    .map((status) {
+                  final selected = _selectedStatusFilter == status;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(status),
+                      selected: selected,
+                      onSelected: (_) =>
+                          setState(() => _selectedStatusFilter = status),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+
+          // Cached Chat Stream
+          Expanded(
+            child: ResponsiveWrapper(
+              child: messages.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.forum_outlined,
+                            size: 64,
+                            color: AppTheme.textTertiary,
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            "No messages in this filter view",
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 8,
+                      ),
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final data = messages[index];
+                        final isMe = data['facultyId'] == currentUid;
+                        final status = (data['status'] ?? 'Pending').toString();
+                        final statusColor = AppTheme.getStatusColor(status);
+                        final lab = (data['lab'] ?? 'Unknown Lab').toString();
+                        final category =
+                            (data['issueCategory'] ?? 'Other').toString();
+
+                        return Align(
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: ResponsiveUtils.isDesktop(context)
+                                  ? 520
+                                  : MediaQuery.of(context).size.width * 0.82,
+                            ),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isMe
+                                    ? AppTheme.primaryColor
+                                    : Colors.white,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(18),
+                                  topRight: const Radius.circular(18),
+                                  bottomLeft: Radius.circular(isMe ? 18 : 4),
+                                  bottomRight: Radius.circular(isMe ? 4 : 18),
+                                ),
+                                border: Border.all(
+                                  color: isMe
+                                      ? AppTheme.primaryLight
+                                      : AppTheme.borderColor,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          (data['facultyName'] ?? 'User')
+                                              .toString(),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                            color: isMe
+                                                ? AppTheme.accentGlow
+                                                : AppTheme.accentColor,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTapDown: (details) async {
+                                          if (!canUpdateStatus) return;
+                                          final selected =
+                                              await showMenu<String>(
+                                            context: context,
+                                            position: RelativeRect.fromLTRB(
+                                              details.globalPosition.dx,
+                                              details.globalPosition.dy,
+                                              details.globalPosition.dx,
+                                              details.globalPosition.dy,
+                                            ),
+                                            items: const [
+                                              PopupMenuItem(
+                                                value: 'Pending',
+                                                child: Text('Mark Pending'),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'In Progress',
+                                                child: Text('Mark In Progress'),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'Resolved',
+                                                child: Text('Mark Resolved'),
+                                              ),
+                                            ],
+                                          );
+                                          if (selected != null &&
+                                              data['complaintId'] != null) {
+                                            _updateStatus(
+                                              appData,
+                                              data['complaintId'].toString(),
+                                              selected,
+                                            );
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: statusColor,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                status,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              if (canUpdateStatus) ...[
+                                                const SizedBox(width: 2),
+                                                const Icon(
+                                                  Icons.arrow_drop_down,
+                                                  size: 14,
+                                                  color: Colors.white,
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    (data['message'] ?? '').toString(),
+                                    style: TextStyle(
+                                      fontSize: 14.5,
+                                      height: 1.4,
+                                      color: isMe
+                                          ? Colors.white
+                                          : AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Wrap(
+                                        spacing: 6,
+                                        children: [
+                                          _miniTag(lab, isMe),
+                                          _miniTag(category, isMe),
+                                        ],
+                                      ),
+                                      Text(
+                                        _formatTime(data['timestampMs']),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isMe
+                                              ? Colors.white60
+                                              : AppTheme.textTertiary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ),
+
+          // Message Composer Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: AppTheme.borderColor)),
+            ),
+            child: SafeArea(
+              child: ResponsiveWrapper(
+                padding: EdgeInsets.zero,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: messageC,
+                        maxLines: null,
+                        onSubmitted: (_) => _sendMessage(appData),
+                        decoration: InputDecoration(
+                          hintText:
+                              "Describe issue & lab (e.g. 'Lab 103 PC-1-2 internet down')...",
+                          filled: true,
+                          fillColor: AppTheme.surfaceColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FloatingActionButton.small(
+                      onPressed: () => _sendMessage(appData),
+                      child: const Icon(Icons.send_rounded),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniTag(String text, bool isMe) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: isMe ? Colors.white12 : AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: isMe ? Colors.white70 : AppTheme.textSecondary,
+        ),
       ),
     );
   }

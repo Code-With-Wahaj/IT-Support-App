@@ -102,7 +102,7 @@ class AuthService {
 
       try {
         final doc = await _firestore.collection('users').doc(uid).get();
-        final stored = (doc.data() as Map<String, dynamic>?)?['tempPassword'];
+        final stored = doc.data()?['tempPassword'];
         if (stored != null && stored.toString().isNotEmpty) {
           passwordsToTry.add(stored.toString());
         }
