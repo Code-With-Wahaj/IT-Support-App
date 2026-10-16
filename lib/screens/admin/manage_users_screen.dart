@@ -147,11 +147,20 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                                               : Icons.groups_outlined,
                                   size: 16,
                                   color: selected
-                                      ? AppTheme.accentColor
+                                      ? Colors.white
                                       : AppTheme.textSecondary,
                                 ),
-                                label: Text(r),
+                                label: Text(
+                                  r,
+                                  style: TextStyle(
+                                    color: selected
+                                        ? Colors.white
+                                        : AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 selected: selected,
+                                selectedColor: AppTheme.primaryColor,
                                 onSelected: (_) =>
                                     setState(() => _selectedRoleChip = r),
                               ),
@@ -168,8 +177,18 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: FilterChip(
-                                label: Text("Status: $st"),
+                                label: Text(
+                                  "Status: $st",
+                                  style: TextStyle(
+                                    color: selected
+                                        ? Colors.white
+                                        : AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                 selected: selected,
+                                selectedColor: AppTheme.primaryColor,
+                                checkmarkColor: Colors.white,
                                 onSelected: (_) =>
                                     setState(() => _selectedApprovalChip = st),
                               ),

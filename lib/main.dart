@@ -37,11 +37,26 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             title: 'Aptech IT Support Hub',
             theme: AppTheme.lightTheme,
+            scrollBehavior: const NoScrollbarBehavior(),
             initialRoute: Routes.splash,
             routes: routes,
           );
         },
       ),
     );
+  }
+}
+
+/// Completely hides all scrollbars across all scrollable widgets, chips, and lists
+class NoScrollbarBehavior extends MaterialScrollBehavior {
+  const NoScrollbarBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
   }
 }

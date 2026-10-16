@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -41,7 +42,13 @@ class _ChatScreenState extends State<ChatScreen> {
     messageC.clear();
 
     await complaintService.createComplaint(message: text);
-    _scrollToBottom();
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   Future<void> _updateStatus(
@@ -120,8 +127,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(status),
+                      label: Text(
+                        status,
+                        style: TextStyle(
+                          color: selected
+                              ? Colors.white
+                              : AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       selected: selected,
+                      selectedColor: AppTheme.primaryColor,
                       onSelected: (_) =>
                           setState(() => _selectedStatusFilter = status),
                     ),
@@ -349,18 +365,25 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: messageC,
-                        maxLines: null,
-                        onSubmitted: (_) => _sendMessage(appData),
-                        decoration: InputDecoration(
-                          hintText:
-                              "Describe issue & lab (e.g. 'Lab 103 PC-1-2 internet down')...",
-                          filled: true,
-                          fillColor: AppTheme.surfaceColor,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
+                      child: CallbackShortcuts(
+                        bindings: <ShortcutActivator, VoidCallback>{
+                          const SingleActivator(LogicalKeyboardKey.enter): () =>
+                              _sendMessage(appData),
+                        },
+                        child: TextField(
+                          controller: messageC,
+                          textInputAction: TextInputAction.send,
+                          maxLines: null,
+                          onSubmitted: (_) => _sendMessage(appData),
+                          decoration: InputDecoration(
+                            hintText:
+                                "Describe issue & lab (e.g. 'Lab 103 PC-1-2 internet down')...",
+                            filled: true,
+                            fillColor: AppTheme.surfaceColor,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                         ),
                       ),

@@ -130,8 +130,15 @@ class _LabListScreenState extends State<LabListScreen> {
                           child: ChoiceChip(
                             label: Text(
                               layout == "U" ? "U-Shape Layout" : layout,
+                              style: TextStyle(
+                                color: selected
+                                    ? Colors.white
+                                    : AppTheme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             selected: selected,
+                            selectedColor: AppTheme.primaryColor,
                             onSelected: (_) =>
                                 setState(() => _selectedLayoutChip = layout),
                           ),

@@ -247,7 +247,8 @@ class FilterComplaintsProvider extends ChangeNotifier {
   }
 
   Future<String?> exportToExcel() {
-    return ExportExcelService.exportToExcel(loadedComplaints);
+    final list = displayedComplaints.isNotEmpty ? displayedComplaints : loadedComplaints;
+    return ExportExcelService.exportToExcel(list);
   }
 
 }

@@ -76,8 +76,17 @@ class FilterComplaintsScreen extends StatelessWidget {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: ChoiceChip(
-                                  label: Text(type),
+                                  label: Text(
+                                    type,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? Colors.white
+                                          : AppTheme.textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                   selected: selected,
+                                  selectedColor: AppTheme.primaryColor,
                                   onSelected: (_) => prov.setFilterType(type),
                                 ),
                               );
@@ -104,8 +113,17 @@ class FilterComplaintsScreen extends StatelessWidget {
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: ChoiceChip(
-                                    label: Text(val),
+                                    label: Text(
+                                      val,
+                                      style: TextStyle(
+                                        color: selected
+                                            ? Colors.white
+                                            : AppTheme.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                     selected: selected,
+                                    selectedColor: AppTheme.primaryColor,
                                     onSelected: (_) {
                                       prov.setSubFilter(val);
                                       prov.loadData();
@@ -125,8 +143,18 @@ class FilterComplaintsScreen extends StatelessWidget {
                             final count = statusCounts[st] ?? 0;
                             final selected = prov.statusChip == st;
                             return FilterChip(
-                              label: Text("$st ($count)"),
+                              label: Text(
+                                "$st ($count)",
+                                style: TextStyle(
+                                  color: selected
+                                      ? Colors.white
+                                      : AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                               selected: selected,
+                              selectedColor: AppTheme.primaryColor,
+                              checkmarkColor: Colors.white,
                               onSelected: (_) => prov.setStatusChip(st),
                             );
                           }).toList(),
