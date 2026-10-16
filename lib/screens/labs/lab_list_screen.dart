@@ -422,10 +422,11 @@ class LabListScreen extends StatelessWidget {
   const LabListScreen({super.key});
 
   Future<Map<String, dynamic>> _getUserInfo() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return {};
     final doc = await FirebaseFirestore.instance
         .collection('users')
-        .doc(uid)
+        .doc(user.uid)
         .get();
 
     final data = doc.data() ?? {};
@@ -438,8 +439,18 @@ class LabListScreen extends StatelessWidget {
       }
     }
 
+    final role = (data['role'] ?? '').toString();
+    final email = (user.email ?? '').toLowerCase().trim();
+    final isSuperAdmin = data['isSuperAdmin'] == true ||
+        role.toLowerCase().contains('super') ||
+        email == 'wahajaamir2@gmail.com' ||
+        email == 'cah-sf@aptech-education.com.pk';
+    final isAdmin = isSuperAdmin || role.toLowerCase().trim() == 'admin';
+
     return {
-      'role': data['role'] ?? '',
+      'role': role,
+      'isAdmin': isAdmin,
+      'isSuperAdmin': isSuperAdmin,
       'name': data['name'] ?? '',
       'associatedLabs': labNames,
     };
@@ -464,11 +475,11 @@ class LabListScreen extends StatelessWidget {
           );
         }
 
-        final role = snapshot.data!['role'] as String;
+        final isAdmin = snapshot.data!['isAdmin'] == true;
         final associatedLabs = snapshot.data!['associatedLabs'] as List<String>;
         final allLabs = provider.labs;
 
-        final labs = role == 'Admin'
+        final labs = isAdmin
             ? allLabs
             : allLabs.where((lab) {
           final labName = lab.name.trim().toLowerCase();
@@ -482,7 +493,7 @@ class LabListScreen extends StatelessWidget {
             title: const Text('Labs'),
             actions: [
               // Only show Export button if Admin AND NOT on a mobile app
-              if (role == 'Admin' && !isMobileApp)
+              if (isAdmin && !isMobileApp)
                 IconButton(
                   icon: const Icon(Icons.download),
                   tooltip: 'Export All Labs',
@@ -514,7 +525,7 @@ class LabListScreen extends StatelessWidget {
                     }
                   },
                 ),
-              if (role == 'Admin')
+              if (isAdmin)
                 IconButton(
                   icon: const Icon(Icons.add),
                   tooltip: 'Add New Lab',
@@ -530,7 +541,7 @@ class LabListScreen extends StatelessWidget {
             ],
           ),
           body: labs.isEmpty
-              ? _buildEmptyState(role)
+              ? _buildEmptyState(isAdmin)
               : SingleChildScrollView(
             padding: EdgeInsets.all(
               ResponsiveUtils.getResponsivePadding(context),
@@ -565,7 +576,7 @@ class LabListScreen extends StatelessWidget {
                       child: _buildCompactLabCard(
                         context,
                         lab,
-                        role,
+                        isAdmin,
                         provider,
                       ),
                     );
@@ -579,7 +590,7 @@ class LabListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState(String role) {
+  Widget _buildEmptyState(bool isAdmin) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -596,7 +607,7 @@ class LabListScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            role == 'Admin'
+            isAdmin
                 ? 'Add your first lab using the + button'
                 : 'No labs are assigned to you',
             style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
@@ -609,7 +620,7 @@ class LabListScreen extends StatelessWidget {
   Widget _buildCompactLabCard(
       BuildContext context,
       LabModel lab,
-      String role,
+      bool isAdmin,
       LabProvider provider,
       ) {
     return Card(
@@ -704,7 +715,7 @@ class LabListScreen extends StatelessWidget {
               ),
 
               // Admin Buttons
-              if (role == 'Admin') ...[
+              if (isAdmin) ...[
                 const SizedBox(height: 12),
                 const Divider(color: Colors.white24, height: 1),
                 Row(

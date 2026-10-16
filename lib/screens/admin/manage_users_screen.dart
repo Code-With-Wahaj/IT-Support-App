@@ -7,44 +7,107 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'package:sizer/sizer.dart';
 
-class ManageUsersScreen extends StatelessWidget {
+class ManageUsersScreen extends StatefulWidget {
   const ManageUsersScreen({super.key});
 
   @override
+  State<ManageUsersScreen> createState() => _ManageUsersScreenState();
+}
+
+class _ManageUsersScreenState extends State<ManageUsersScreen> {
+  bool isSuperAdmin = false;
+  bool isCheckingRole = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSuperAdmin();
+  }
+
+  Future<void> _checkSuperAdmin() async {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user == null) {
+      if (mounted) setState(() => isCheckingRole = false);
+      return;
+    }
+    final email = (user.email ?? '').toLowerCase().trim();
+    if (email == 'wahajaamir2@gmail.com' || email == 'cah-sf@aptech-education.com.pk') {
+      if (mounted) {
+        setState(() {
+          isSuperAdmin = true;
+          isCheckingRole = false;
+        });
+      }
+      return;
+    }
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final r = (doc.data()?['role'] ?? '').toString().toLowerCase().trim();
+      final isSA = doc.data()?['isSuperAdmin'] == true;
+      if (mounted) {
+        setState(() {
+          isSuperAdmin = r == 'super admin' || r == 'superadmin' || isSA || email == 'wahajaamir2@gmail.com' || email == 'cah-sf@aptech-education.com.pk';
+          isCheckingRole = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => isCheckingRole = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (isCheckingRole) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final tabCount = isSuperAdmin ? 3 : 2;
+
     return SafeArea(
       child: DefaultTabController(
-        length: 2,
+        length: tabCount,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text("Manage Users"),
-            bottom: const TabBar(
+            title: Text(isSuperAdmin ? "Manage Users & Admins" : "Manage Users"),
+            bottom: TabBar(
               indicatorColor: Colors.white,
               tabs: [
-                Tab(
+                const Tab(
                   icon: Icon(Icons.school, color: Colors.white),
                   child: Text("Faculty", style: TextStyle(color: Colors.white)),
                 ),
-                Tab(
+                const Tab(
                   icon: Icon(Icons.engineering, color: Colors.white),
                   child: Text(
                     "IT Technician",
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
+                if (isSuperAdmin)
+                  const Tab(
+                    icon: Icon(Icons.admin_panel_settings, color: Colors.amberAccent),
+                    child: Text(
+                      "Admins",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
               ],
             ),
           ),
-          body: const TabBarView(
+          body: TabBarView(
             children: [
-              UserListTab(role: "Faculty"),
-              UserListTab(role: "IT Technician"),
+              UserListTab(role: "Faculty", isCurrentSuperAdmin: isSuperAdmin),
+              UserListTab(role: "IT Technician", isCurrentSuperAdmin: isSuperAdmin),
+              if (isSuperAdmin)
+                UserListTab(role: "Admin", isCurrentSuperAdmin: isSuperAdmin),
             ],
           ),
           floatingActionButton: FloatingActionButton.extended(
             backgroundColor: AppTheme.accentColor,
             icon: const Icon(Icons.person_add),
-            label: const Text("Add User"),
+            label: Text(isSuperAdmin ? "Add User / Admin" : "Add User"),
             onPressed: () {
               Navigator.pushNamed(context, '/admin_add_user');
             },
@@ -57,7 +120,12 @@ class ManageUsersScreen extends StatelessWidget {
 
 class UserListTab extends StatelessWidget {
   final String role;
-  const UserListTab({required this.role, super.key});
+  final bool isCurrentSuperAdmin;
+  const UserListTab({
+    required this.role,
+    this.isCurrentSuperAdmin = false,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -70,9 +138,24 @@ class UserListTab extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final docs = snapshot.data!.docs
-              .where((d) => (d['role'] ?? '') == role)
-              .toList();
+          final docs = snapshot.data!.docs.where((d) {
+            final data = d.data() as Map<String, dynamic>;
+            final docRole = (data['role'] ?? '').toString().toLowerCase().trim();
+            final docEmail = (data['email'] ?? '').toString().toLowerCase().trim();
+            final isDocSA = data['isSuperAdmin'] == true;
+
+            // CRITICAL: Super Admin must NEVER be listed in any user list
+            if (docEmail == 'wahajaamir2@gmail.com' ||
+                docEmail == 'cah-sf@aptech-education.com.pk' ||
+                docRole == 'super admin' ||
+                docRole == 'superadmin' ||
+                isDocSA) {
+              return false;
+            }
+
+            final userRole = (data['role'] ?? '').toString().trim();
+            return userRole == role;
+          }).toList();
 
           if (docs.isEmpty) {
             return Center(
@@ -313,12 +396,16 @@ class UserListTab extends StatelessWidget {
                               );
                               if (ok ?? false) {
                                 try {
-                                  await authProv.adminDeleteFirestoreUser(d.id);
+                                  await authProv.adminDeleteUserFully(
+                                    uid: d.id,
+                                    email: email,
+                                    tempPassword: data['tempPassword'],
+                                  );
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: const Text(
-                                          "User deleted successfully",
+                                          "User and Authentication account removed successfully",
                                         ),
                                         backgroundColor: AppTheme.successColor,
                                       ),

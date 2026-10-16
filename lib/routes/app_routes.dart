@@ -8,6 +8,7 @@ import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/notifications/notification_panel_screen.dart';
 import '../screens/splash_screen.dart';
 
 class Routes {
@@ -22,6 +23,7 @@ class Routes {
   static const String adminAddUser = '/admin_add_user';
   static const String manageUsers = '/manage_users';
   static const String labList = '/lab_list';
+  static const String notifications = '/notifications';
 }
 
 final Map<String, Widget Function(BuildContext)> routes = {
@@ -35,4 +37,5 @@ final Map<String, Widget Function(BuildContext)> routes = {
   Routes.adminAddUser: (_) => const AdminAddUserScreen(),
   Routes.manageUsers: (_) => const ManageUsersScreen(),
   Routes.labList: (_) => const LabListScreen(),
+  Routes.notifications: (_) => const NotificationPanelScreen(),
 };

@@ -170,7 +170,7 @@ class EditUserDialog extends StatefulWidget {
 
 class _EditUserDialogState extends State<EditUserDialog> {
   late TextEditingController nameC;
-  late TextEditingController roleC;
+  String selectedRole = "Faculty";
   List<String> labs = [];
   final TextEditingController labInputC = TextEditingController();
 
@@ -178,7 +178,18 @@ class _EditUserDialogState extends State<EditUserDialog> {
   void initState() {
     super.initState();
     nameC = TextEditingController(text: widget.initial['name'] ?? '');
-    roleC = TextEditingController(text: widget.initial['role'] ?? '');
+    final rawRole = (widget.initial['role'] ?? '').toString().trim();
+    if (rawRole.toLowerCase() == 'faculty') {
+      selectedRole = 'Faculty';
+    } else if (rawRole.toLowerCase() == 'it technician' || rawRole.toLowerCase() == 'technician') {
+      selectedRole = 'IT Technician';
+    } else if (rawRole.toLowerCase() == 'admin') {
+      selectedRole = 'Admin';
+    } else if (rawRole.toLowerCase().contains('super')) {
+      selectedRole = 'Super Admin';
+    } else {
+      selectedRole = rawRole.isNotEmpty ? rawRole : 'Faculty';
+    }
     labs = List<String>.from(widget.initial['associatedLabs'] ?? []);
   }
 
@@ -212,7 +223,17 @@ class _EditUserDialogState extends State<EditUserDialog> {
   @override
   Widget build(BuildContext context) {
     final authProv = Provider.of<AuthProvider>(context, listen: false);
-    final role = widget.initial['role'] ?? '';
+    final currentUserEmail = (authProv.user?.email ?? '').toLowerCase().trim();
+    final isSuperAdmin = currentUserEmail == 'wahajaamir2@gmail.com' ||
+        currentUserEmail == 'cah-sf@aptech-education.com.pk';
+
+    final List<String> availableRoles = isSuperAdmin
+        ? ["Faculty", "IT Technician", "Admin", "Super Admin"]
+        : ["Faculty", "IT Technician"];
+
+    if (!availableRoles.contains(selectedRole)) {
+      availableRoles.add(selectedRole);
+    }
 
     return AlertDialog(
       backgroundColor: AppTheme.cardColor,
@@ -233,8 +254,8 @@ class _EditUserDialogState extends State<EditUserDialog> {
               ),
             ),
             SizedBox(height: 2.h),
-            TextField(
-              controller: roleC,
+            DropdownButtonFormField<String>(
+              value: selectedRole,
               decoration: InputDecoration(
                 labelText: "Role",
                 prefixIcon: Icon(Icons.work, color: AppTheme.accentColor),
@@ -242,8 +263,16 @@ class _EditUserDialogState extends State<EditUserDialog> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
+              items: availableRoles
+                  .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                  .toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() => selectedRole = val);
+                }
+              },
             ),
-            if (role == "IT Technician") ...[
+            if (selectedRole == "IT Technician") ...[
               SizedBox(height: 2.h),
               Align(
                 alignment: Alignment.centerLeft,
@@ -315,13 +344,38 @@ class _EditUserDialogState extends State<EditUserDialog> {
         ),
         ElevatedButton(
           onPressed: () async {
+            final oldRole = (widget.initial['role'] ?? '').toString();
+
+            if ((selectedRole == 'Admin' ||
+                    oldRole.toLowerCase() == 'admin' ||
+                    selectedRole.contains('Super') ||
+                    oldRole.toLowerCase().contains('super')) &&
+                !isSuperAdmin) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    "Only Super Admin can edit Admin accounts or assign Admin roles.",
+                  ),
+                ),
+              );
+              return;
+            }
+
             final Map<String, dynamic> update = {
               "name": nameC.text.trim(),
-              "role": roleC.text.trim(),
+              "role": selectedRole,
             };
 
-            if (roleC.text.trim() == "IT Technician") {
+            if (selectedRole == "IT Technician") {
               update["associatedLabs"] = List<String>.from(labs);
+            } else {
+              update["associatedLabs"] = [];
+            }
+
+            if (selectedRole == "Super Admin") {
+              update["isSuperAdmin"] = true;
+            } else if (oldRole.toLowerCase().contains('super')) {
+              update["isSuperAdmin"] = false;
             }
 
             await authProv.adminUpdateUserDoc(widget.docId, update);

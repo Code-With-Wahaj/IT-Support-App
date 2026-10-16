@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
+import 'notification_service.dart';
 
 class ComplaintService {
   final CollectionReference complaints =
@@ -64,6 +65,18 @@ class ComplaintService {
       'resolutionTimestamp': null,
       'timeTaken': null,
     });
+
+    // Notify assigned technician immediately
+    if (assignedToId.isNotEmpty && assignedToId != 'Not Assigned') {
+      NotificationService().sendNotification(
+        userId: assignedToId,
+        title: "New Complaint: $detectedLab",
+        message: "A new ${issueData['category']} ticket was assigned to you: '$message'",
+        complaintId: complaintId,
+        lab: detectedLab,
+        type: 'complaint_created',
+      );
+    }
   }
 
   /// Fetch User Name
@@ -240,6 +253,22 @@ class ComplaintService {
     }
 
     await complaints.doc(complaintId).update(updateData);
+
+    // Notify the faculty member who submitted this complaint
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    final facultyId = (data['facultyId'] ?? '').toString();
+    final labName = (data['lab'] ?? 'Lab').toString();
+
+    if (facultyId.isNotEmpty && facultyId != updaterId) {
+      NotificationService().sendNotification(
+        userId: facultyId,
+        title: "Ticket Status: $newStatus ($labName)",
+        message: "Your complaint for $labName has been updated to '$newStatus' by $updaterName.",
+        complaintId: complaintId,
+        lab: labName,
+        type: 'status_changed',
+      );
+    }
   }
 
   /// Real-time Listener (if ever needed again)

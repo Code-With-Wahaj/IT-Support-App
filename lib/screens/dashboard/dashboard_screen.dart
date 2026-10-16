@@ -1,9 +1,14 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:aptech_it_support/routes/app_routes.dart';
 import 'package:aptech_it_support/theme/app_theme.dart';
 import 'package:aptech_it_support/utils/responsive_utils.dart';
+import 'package:aptech_it_support/services/export_excel_service.dart';
+import 'package:aptech_it_support/services/notification_service.dart';
+import 'package:aptech_it_support/screens/dashboard/complaint_detail_screen.dart';
 import 'package:sizer/sizer.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -16,11 +21,99 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   String userName = "";
   String role = "";
+  StreamSubscription? _notifSub;
+  final DateTime _screenOpenTime = DateTime.now();
+
+  bool get isSuperAdmin {
+    final email = (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
+    final r = role.toLowerCase().trim();
+    return r == 'super admin' || r == 'superadmin' || email == 'wahajaamir2@gmail.com' || email == 'cah-sf@aptech-education.com.pk';
+  }
+
+  bool get isAdmin => role.toLowerCase().trim() == 'admin' || isSuperAdmin;
 
   @override
   void initState() {
     super.initState();
     fetchUser();
+    _initNotificationListener();
+  }
+
+  void _initNotificationListener() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    NotificationService().requestPermission();
+
+    _notifSub = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('userId', isEqualTo: user.uid)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data() as Map<String, dynamic>? ?? {};
+          final title = (data['title'] ?? 'Notification').toString();
+          final message = (data['message'] ?? '').toString();
+          final complaintId = (data['complaintId'] ?? '').toString();
+          final createdAt = data['createdAt'] as Timestamp?;
+
+          // Alert if recent
+          if (createdAt != null &&
+              createdAt.toDate().isAfter(_screenOpenTime.subtract(const Duration(seconds: 5)))) {
+            // Native platform / browser push
+            NotificationService().showPushNotification(title, message);
+
+            // In-app floating alert
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: AppTheme.primaryColor,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  content: Row(
+                    children: [
+                      const Icon(Icons.notifications_active, color: Colors.amberAccent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                            Text(message, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  action: SnackBarAction(
+                    label: "OPEN",
+                    textColor: AppTheme.accentColor,
+                    onPressed: () {
+                      if (complaintId.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => ComplaintDetailScreen(complaintId: complaintId)),
+                        );
+                      } else {
+                        Navigator.pushNamed(context, Routes.notifications);
+                      }
+                    },
+                  ),
+                ),
+              );
+            }
+          }
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notifSub?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchUser() async {
@@ -116,21 +209,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             SizedBox(height: 1.h),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.accentColor.withOpacity(0.2),
+                color: isSuperAdmin
+                    ? Colors.amber.withOpacity(0.18)
+                    : AppTheme.accentColor.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: AppTheme.accentColor.withOpacity(0.5),
+                  color: isSuperAdmin
+                      ? Colors.amber.withOpacity(0.8)
+                      : AppTheme.accentColor.withOpacity(0.5),
                 ),
               ),
-              child: Text(
-                role,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isSuperAdmin) ...[
+                    const Icon(Icons.shield, color: Colors.amber, size: 16),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    isSuperAdmin ? "Super Admin" : role,
+                    style: TextStyle(
+                      color: isSuperAdmin ? Colors.amberAccent : Colors.white,
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -580,15 +686,83 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // ---------------- BUILD ----------------
 
+  Future<void> _exportAllComplaintsToExcel() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text("Generating complaints Excel report..."),
+        backgroundColor: AppTheme.infoColor,
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('complaints')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text("No complaints available to export."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      await ExportExcelService.exportToExcel(snapshot.docs);
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text("Report downloaded successfully (.xlsx)"),
+          backgroundColor: AppTheme.successColor,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text("Export failed: $e"),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isAdmin = role.toLowerCase() == "admin";
+    final isAdmin = this.isAdmin;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isAdmin ? "Admin Dashboard" : "Dashboard"),
+        title: Text(isSuperAdmin ? "Super Admin Console" : isAdmin ? "Admin Dashboard" : "Dashboard"),
         centerTitle: true,
         actions: [
+          StreamBuilder<int>(
+            stream: NotificationService().getUnreadCountStream(
+              FirebaseAuth.instance.currentUser?.uid ?? '',
+            ),
+            builder: (context, snap) {
+              final count = snap.data ?? 0;
+              return IconButton(
+                tooltip: "Notifications",
+                icon: Badge(
+                  isLabelVisible: count > 0,
+                  label: Text('$count'),
+                  backgroundColor: Colors.redAccent,
+                  child: const Icon(Icons.notifications),
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, Routes.notifications);
+                },
+              );
+            },
+          ),
           if (role.toLowerCase() == "it technician")
             IconButton(
               tooltip: "Manage Labs",

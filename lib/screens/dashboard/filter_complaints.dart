@@ -591,6 +591,7 @@ class FilterComplaintsScreen extends StatelessWidget {
 
 // lib/screens/dashboard/filter_complaints.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Added for kIsWeb
 import 'package:provider/provider.dart';
@@ -612,13 +613,83 @@ class FilterComplaintsScreen extends StatelessWidget {
 
     return ChangeNotifierProvider(
       create: (_) => FilterComplaintsProvider(),
-      child: Scaffold(
-        appBar: AppBar(title: const Text("Filter & Export Complaints")),
-        body: ResponsiveWrapper(
-          child: Consumer<FilterComplaintsProvider>(
-            builder: (context, prov, _) {
-              final statusCounts = prov.statusCounts();
-              return Column(
+      child: Consumer<FilterComplaintsProvider>(
+        builder: (context, prov, _) {
+          final statusCounts = prov.statusCounts();
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text("Filter Complaints"),
+              actions: [
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseAuth.instance.currentUser == null
+                      ? null
+                      : FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(FirebaseAuth.instance.currentUser!.uid)
+                          .snapshots(),
+                  builder: (context, userSnap) {
+                    final userData = userSnap.data?.data() as Map<String, dynamic>? ?? {};
+                    final userRole = (userData['role'] ?? '').toString().toLowerCase().trim();
+                    final userEmail = (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
+                    final isAdmin = userRole == 'admin' ||
+                        userRole == 'super admin' ||
+                        userRole == 'superadmin' ||
+                        userData['isSuperAdmin'] == true ||
+                        userEmail == 'wahajaamir2@gmail.com' ||
+                        userEmail == 'cah-sf@aptech-education.com.pk';
+
+                    if (!isAdmin) return const SizedBox.shrink();
+
+                    return IconButton(
+                      icon: const Icon(Icons.download),
+                      tooltip: "Export to Excel",
+                      onPressed: () async {
+                        if (prov.loadedComplaints.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("No complaints match current filter to export."),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+
+                        final messenger = ScaffoldMessenger.of(context);
+                        messenger.clearSnackBars();
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text("Downloading Excel file..."),
+                            backgroundColor: AppTheme.infoColor,
+                          ),
+                        );
+
+                        try {
+                          await prov.exportToExcel();
+                          messenger.clearSnackBars();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text("Download completed successfully (.xlsx)"),
+                              backgroundColor: AppTheme.successColor,
+                              duration: Duration(seconds: 4),
+                            ),
+                          );
+                        } catch (e) {
+                          messenger.clearSnackBars();
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text("Export failed: $e"),
+                              backgroundColor: AppTheme.errorColor,
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+            body: ResponsiveWrapper(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Filters section (scrollable with max height)
@@ -737,76 +808,7 @@ class FilterComplaintsScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-
-                          // --- Export Button Logic (ONLY SHOW IF NOT MOBILE) ---
-                          if (!isMobile) ...[
-                            SizedBox(height: 2.h),
-                            SizedBox(
-                              height: 6.h,
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.download),
-                                label: Text(
-                                  "Export to Excel",
-                                  style: TextStyle(fontSize: 14.sp),
-                                ),
-                                onPressed: prov.loadedComplaints.isEmpty
-                                    ? null
-                                    : () async {
-                                  final messenger = ScaffoldMessenger.of(
-                                    context,
-                                  );
-                                  messenger.clearSnackBars();
-
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: const Text(
-                                        "Downloading file...",
-                                      ),
-                                      backgroundColor: AppTheme.infoColor,
-                                    ),
-                                  );
-
-                                  try {
-                                    await prov.exportToExcel();
-
-                                    messenger.clearSnackBars();
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: const Text(
-                                          "Download completed",
-                                        ),
-                                        backgroundColor:
-                                        AppTheme.successColor,
-                                        duration: const Duration(
-                                          seconds: 4,
-                                        ),
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    messenger.clearSnackBars();
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text("Export failed: $e"),
-                                        backgroundColor:
-                                        AppTheme.errorColor,
-                                      ),
-                                    );
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: 1.6.h,
-                                    horizontal: 4.w,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-
-                          SizedBox(height: 2.h),
+                          SizedBox(height: 1.h),
 
                           // --- Status chips + Total count on right ---
                           Row(
@@ -1095,10 +1097,10 @@ class FilterComplaintsScreen extends StatelessWidget {
                     ),
                   ),
                 ],
-              );
-            },
-          ),
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

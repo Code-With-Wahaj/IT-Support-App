@@ -141,6 +141,17 @@ class AuthProvider extends ChangeNotifier {
   Future<void> adminSetApproval(String uid, bool isApproved) =>
       _authService.setApproval(uid, isApproved);
 
+  Future<void> adminDeleteUserFully({
+    required String uid,
+    required String email,
+    String? tempPassword,
+  }) =>
+      _authService.deleteUserFully(
+        uid: uid,
+        email: email,
+        tempPassword: tempPassword,
+      );
+
   Future<void> adminDeleteFirestoreUser(String uid) =>
       _authService.deleteUserFirestoreOnly(uid);
 }
