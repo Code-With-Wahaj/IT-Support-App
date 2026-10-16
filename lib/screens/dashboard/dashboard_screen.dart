@@ -3,13 +3,18 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:aptech_it_support/routes/app_routes.dart';
-import 'package:aptech_it_support/theme/app_theme.dart';
-import 'package:aptech_it_support/utils/responsive_utils.dart';
-import 'package:aptech_it_support/services/export_excel_service.dart';
-import 'package:aptech_it_support/services/notification_service.dart';
-import 'package:aptech_it_support/screens/dashboard/complaint_detail_screen.dart';
-import 'package:sizer/sizer.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../providers/app_data_provider.dart';
+import '../../routes/app_routes.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/responsive_utils.dart';
+import '../../services/export_excel_service.dart';
+import '../../services/notification_service.dart';
+import '../../widgets/expressive_logo.dart';
+import '../../widgets/interactive_tour_overlay.dart';
+import 'complaint_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,24 +24,54 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  String userName = "";
-  String role = "";
   StreamSubscription? _notifSub;
   final DateTime _screenOpenTime = DateTime.now();
 
-  bool get isSuperAdmin {
-    final email = (FirebaseAuth.instance.currentUser?.email ?? '').toLowerCase().trim();
-    final r = role.toLowerCase().trim();
-    return r == 'super admin' || r == 'superadmin' || email == 'wahajaamir2@gmail.com' || email == 'cah-sf@aptech-education.com.pk';
-  }
+  // Filter Chips state (Replaces old Dropdowns & TabBars)
+  String _selectedStatusChip = "All";
+  String _selectedLabChip = "All Labs";
+  String _selectedCategoryChip = "All";
 
-  bool get isAdmin => role.toLowerCase().trim() == 'admin' || isSuperAdmin;
+  // Interactive Game-Style Tutorial Coach Keys
+  final GlobalKey _welcomeKey = GlobalKey();
+  final GlobalKey _statsKey = GlobalKey();
+  final GlobalKey _filterChipsKey = GlobalKey();
+  final GlobalKey _quickActionsKey = GlobalKey();
+  final GlobalKey _chatFabKey = GlobalKey();
+
+  bool _showTour = false;
 
   @override
   void initState() {
     super.initState();
-    fetchUser();
     _initNotificationListener();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkFirstTimeTour());
+  }
+
+  Future<void> _checkFirstTimeTour() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final dataProv = context.read<AppDataProvider>();
+    if (dataProv.currentUserProfile == null) {
+      await dataProv.bindSessionStreams(user.uid);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'tour_completed_${user.uid}';
+    final seen = prefs.getBool(key) ?? false;
+    if (!seen && mounted) {
+      setState(() => _showTour = true);
+    }
+  }
+
+  Future<void> _completeTour() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('tour_completed_${user.uid}', true);
+    }
+    if (mounted) {
+      setState(() => _showTour = false);
+    }
   }
 
   void _initNotificationListener() {
@@ -52,49 +87,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .listen((snapshot) {
       for (var change in snapshot.docChanges) {
         if (change.type == DocumentChangeType.added) {
-          final data = change.doc.data() as Map<String, dynamic>? ?? {};
+          final data = change.doc.data() ?? {};
           final title = (data['title'] ?? 'Notification').toString();
           final message = (data['message'] ?? '').toString();
           final complaintId = (data['complaintId'] ?? '').toString();
           final createdAt = data['createdAt'] as Timestamp?;
 
-          // Alert if recent
           if (createdAt != null &&
-              createdAt.toDate().isAfter(_screenOpenTime.subtract(const Duration(seconds: 5)))) {
-            // Native platform / browser push
+              createdAt.toDate().isAfter(
+                _screenOpenTime.subtract(const Duration(seconds: 5)),
+              )) {
             NotificationService().showPushNotification(title, message);
-
-            // In-app floating alert
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  backgroundColor: AppTheme.primaryColor,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  content: Row(
-                    children: [
-                      const Icon(Icons.notifications_active, color: Colors.amberAccent),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                            Text(message, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  content: Text("$title: $message"),
                   action: SnackBarAction(
-                    label: "OPEN",
-                    textColor: AppTheme.accentColor,
+                    label: "VIEW",
+                    textColor: AppTheme.accentGlow,
                     onPressed: () {
                       if (complaintId.isNotEmpty) {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => ComplaintDetailScreen(complaintId: complaintId)),
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ComplaintDetailScreen(complaintId: complaintId),
+                          ),
                         );
                       } else {
                         Navigator.pushNamed(context, Routes.notifications);
@@ -116,29 +134,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  Future<void> fetchUser() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final doc = await FirebaseFirestore.instance
-        .collection("users")
-        .doc(user.uid)
-        .get();
-
-    setState(() {
-      userName = doc.data()?['name'] ?? '';
-      role = doc.data()?['role'] ?? '';
-    });
-  }
-
-  // ---------------- LOGOUT ----------------
-
-  void _logout() async {
+  Future<void> _logout() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text("Confirm Logout"),
-        content: const Text("Do you really want to logout?"),
+        content: const Text("Are you sure you want to sign out?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -146,585 +147,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text("Logout"),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            child: const Text("Sign Out"),
           ),
         ],
       ),
     );
 
     if (confirm ?? false) {
+      context.read<AppDataProvider>().disposeStreams();
       await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, Routes.login);
     }
   }
 
-  // ---------------- UI HELPERS ----------------
-
-  Widget _welcomeCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [
-              AppTheme.primaryColor,
-              AppTheme.primaryColor.withOpacity(0.85),
-            ],
-          ),
-        ),
-        padding: EdgeInsets.symmetric(
-          horizontal: ResponsiveUtils.getResponsivePadding(
-            context,
-            mobile: 20,
-            tablet: 24,
-            desktop: 28,
-          ),
-          vertical: ResponsiveUtils.getResponsivePadding(
-            context,
-            mobile: 16,
-            tablet: 20,
-            desktop: 24,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Welcome Back",
-              style: TextStyle(color: Colors.white70, fontSize: 14.sp),
-            ),
-            SizedBox(height: 0.5.h),
-            Text(
-              userName,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22.sp,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 1.h),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSuperAdmin
-                    ? Colors.amber.withOpacity(0.18)
-                    : AppTheme.accentColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSuperAdmin
-                      ? Colors.amber.withOpacity(0.8)
-                      : AppTheme.accentColor.withOpacity(0.5),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isSuperAdmin) ...[
-                    const Icon(Icons.shield, color: Colors.amber, size: 16),
-                    const SizedBox(width: 6),
-                  ],
-                  Text(
-                    isSuperAdmin ? "Super Admin" : role,
-                    style: TextStyle(
-                      color: isSuperAdmin ? Colors.amberAccent : Colors.white,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _statBox(String title, int count, Color color, IconData icon) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = ResponsiveUtils.isMobile(context)
-        ? (screenWidth - 48) / 3 - 8
-        : ResponsiveUtils.isTablet(context)
-        ? (screenWidth - 64) / 3 - 12
-        : 180.0;
-
-    return Container(
-      width: cardWidth,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
-      ),
-      padding: EdgeInsets.symmetric(
-        vertical: ResponsiveUtils.isMobile(context) ? 12 : 16,
-        horizontal: 8,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: EdgeInsets.all(ResponsiveUtils.isMobile(context) ? 8 : 12),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-              border: Border.all(color: color.withOpacity(0.3), width: 2),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: ResponsiveUtils.isMobile(context) ? 20 : 24,
-            ),
-          ),
-          SizedBox(height: 1.h),
-          Text(
-            count.toString(),
-            style: TextStyle(
-              fontSize: ResponsiveUtils.isMobile(context) ? 20.sp : 24.sp,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          SizedBox(height: 0.3.h),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: ResponsiveUtils.isMobile(context) ? 14.sp : 12.sp,
-              color: AppTheme.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _dashboardButton(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap,
-    Color color,
-  ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: EdgeInsets.all(
-            ResponsiveUtils.getResponsivePadding(
-              context,
-              mobile: 16,
-              tablet: 18,
-              desktop: 20,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              SizedBox(width: 4.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: 0.5.h),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, color: color, size: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ---------------- ROLE DASHBOARDS ----------------
-
-  Widget _facultyDashboard() {
-    String selectedStatus = "all";
-
-    return StatefulBuilder(
-      builder: (context, setLocalState) {
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _welcomeCard(),
-              SizedBox(height: 3.h),
-
-              /// FACULTY STATS
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection("complaints")
-                    .where("facultyName", isEqualTo: userName)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const SizedBox();
-
-                  final docs = snapshot.data!.docs;
-                  final pending = docs
-                      .where((d) => d['status'] == 'Pending')
-                      .length;
-                  final progress = docs
-                      .where((d) => d['status'] == 'In Progress')
-                      .length;
-                  final resolved = docs
-                      .where((d) => d['status'] == 'Resolved')
-                      .length;
-
-                  return Wrap(
-                    spacing: 2.w,
-                    runSpacing: 2.h,
-                    children: [
-                      _statBox(
-                        "Pending",
-                        pending,
-                        Colors.red,
-                        Icons.error_outline,
-                      ),
-                      _statBox(
-                        "In Progress",
-                        progress,
-                        Colors.orange,
-                        Icons.sync,
-                      ),
-                      _statBox(
-                        "Resolved",
-                        resolved,
-                        Colors.green,
-                        Icons.check_circle_outline,
-                      ),
-                    ],
-                  );
-                },
-              ),
-
-              SizedBox(height: 3.h),
-
-              Text(
-                "Your Complaints",
-                style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
-              ),
-
-              SizedBox(height: 1.h),
-
-              /// STATUS FILTER
-              DropdownButtonFormField<String>(
-                value: selectedStatus,
-                decoration: const InputDecoration(
-                  labelText: "Filter by Status",
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: "all", child: Text("All")),
-                  DropdownMenuItem(value: "Pending", child: Text("Pending")),
-                  DropdownMenuItem(
-                    value: "In Progress",
-                    child: Text("In Progress"),
-                  ),
-                  DropdownMenuItem(value: "Resolved", child: Text("Resolved")),
-                ],
-                onChanged: (value) {
-                  setLocalState(() => selectedStatus = value!);
-                },
-              ),
-
-              SizedBox(height: 2.h),
-
-              /// COMPLAINT LIST
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection("complaints")
-                    .where("facultyName", isEqualTo: userName)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final complaints =
-                      snapshot.data!.docs.where((doc) {
-                        if (selectedStatus == "all") return true;
-                        return doc['status'] == selectedStatus;
-                      }).toList()..sort((a, b) {
-                        final t1 = a['timestamp'] as Timestamp?;
-                        final t2 = b['timestamp'] as Timestamp?;
-                        // Descending: latest first
-                        return (t2?.millisecondsSinceEpoch ?? 0).compareTo(
-                          t1?.millisecondsSinceEpoch ?? 0,
-                        );
-                      });
-
-                  if (complaints.isEmpty) {
-                    return const Text("No complaints found");
-                  }
-
-                  return Column(
-                    children: complaints
-                        .map(
-                          (doc) => _complaintCard(
-                            doc.data() as Map<String, dynamic>,
-                          ),
-                        )
-                        .toList(),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _itTechnicianDashboard() {
-    String selectedStatus = "all";
-    String selectedLab = "all";
-    List<String> technicianLabs = [];
-
-    return StatefulBuilder(
-      builder: (context, setLocalState) {
-        // Fetch technician labs once
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null && technicianLabs.isEmpty) {
-          FirebaseFirestore.instance
-              .collection("users")
-              .doc(user.uid)
-              .get()
-              .then((doc) {
-                final labs = List<String>.from(
-                  doc.data()?['associatedLabs'] ?? [],
-                );
-                if (labs.isNotEmpty) {
-                  setLocalState(() {
-                    technicianLabs = labs;
-                  });
-                }
-              });
-        }
-
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _welcomeCard(),
-              SizedBox(height: 3.h),
-
-              /// IT STATS
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection("complaints")
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const SizedBox();
-
-                  final docs = snapshot.data!.docs;
-                  return Wrap(
-                    spacing: 2.w,
-                    runSpacing: 2.h,
-                    children: [
-                      _statBox(
-                        "Pending",
-                        docs.where((d) => d['status'] == 'Pending').length,
-                        Colors.red,
-                        Icons.error_outline,
-                      ),
-                      _statBox(
-                        "In Progress",
-                        docs.where((d) => d['status'] == 'In Progress').length,
-                        Colors.orange,
-                        Icons.sync,
-                      ),
-                      _statBox(
-                        "Resolved",
-                        docs.where((d) => d['status'] == 'Resolved').length,
-                        Colors.green,
-                        Icons.check_circle_outline,
-                      ),
-                    ],
-                  );
-                },
-              ),
-
-              SizedBox(height: 3.h),
-
-              /// FILTERS
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: selectedStatus,
-                      decoration: const InputDecoration(
-                        labelText: "Status",
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: "all", child: Text("All")),
-                        DropdownMenuItem(
-                          value: "Pending",
-                          child: Text("Pending"),
-                        ),
-                        DropdownMenuItem(
-                          value: "In Progress",
-                          child: Text("In Progress"),
-                        ),
-                        DropdownMenuItem(
-                          value: "Resolved",
-                          child: Text("Resolved"),
-                        ),
-                      ],
-                      onChanged: (v) =>
-                          setLocalState(() => selectedStatus = v!),
-                    ),
-                  ),
-                  SizedBox(width: 2.w),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: selectedLab,
-                      decoration: const InputDecoration(
-                        labelText: "Lab",
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: "all",
-                          child: Text("All Labs"),
-                        ),
-                        ...technicianLabs.map(
-                          (lab) =>
-                              DropdownMenuItem(value: lab, child: Text(lab)),
-                        ),
-                      ],
-                      onChanged: (v) => setLocalState(() => selectedLab = v!),
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 2.h),
-
-              /// COMPLAINT LIST
-              StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection("complaints")
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const CircularProgressIndicator();
-                  }
-
-                  final complaints =
-                      snapshot.data!.docs.where((doc) {
-                        final statusMatch =
-                            selectedStatus == "all" ||
-                            doc['status'] == selectedStatus;
-                        final labMatch =
-                            selectedLab == "all" || doc['lab'] == selectedLab;
-                        return statusMatch && labMatch;
-                      }).toList()..sort((a, b) {
-                        final t1 = a['timestamp'] as Timestamp?;
-                        final t2 = b['timestamp'] as Timestamp?;
-                        // Descending: latest first
-                        return (t2?.millisecondsSinceEpoch ?? 0).compareTo(
-                          t1?.millisecondsSinceEpoch ?? 0,
-                        );
-                      });
-
-                  if (complaints.isEmpty) {
-                    return const Text("No complaints found");
-                  }
-
-                  return Column(
-                    children: complaints
-                        .map(
-                          (doc) => _complaintCard(
-                            doc.data() as Map<String, dynamic>,
-                          ),
-                        )
-                        .toList(),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ---------------- BUILD ----------------
-
   Future<void> _exportAllComplaintsToExcel() async {
     final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text("Generating complaints Excel report..."),
-        backgroundColor: AppTheme.infoColor,
-        duration: Duration(seconds: 2),
-      ),
+      const SnackBar(content: Text("Generating Excel report...")),
     );
-
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('complaints')
-          .orderBy('createdAt', descending: true)
+          .orderBy('timestamp', descending: true)
           .get();
-
       if (snapshot.docs.isEmpty) {
-        messenger.clearSnackBars();
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text("No complaints available to export."),
-            backgroundColor: Colors.orange,
-          ),
+          const SnackBar(content: Text("No complaints found to export.")),
         );
         return;
       }
-
       await ExportExcelService.exportToExcel(snapshot.docs);
-      messenger.clearSnackBars();
       messenger.showSnackBar(
         const SnackBar(
-          content: Text("Report downloaded successfully (.xlsx)"),
+          content: Text("Excel report downloaded (.xlsx)"),
           backgroundColor: AppTheme.successColor,
-          duration: Duration(seconds: 4),
         ),
       );
     } catch (e) {
-      messenger.clearSnackBars();
       messenger.showSnackBar(
         SnackBar(
           content: Text("Export failed: $e"),
@@ -736,274 +197,816 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = this.isAdmin;
+    final appData = context.watch<AppDataProvider>();
+    final isAdmin = appData.isAdmin;
+    final isSuperAdmin = appData.isSuperAdmin;
+    final role = appData.userRole;
+    final userName = appData.userName;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isSuperAdmin ? "Super Admin Console" : isAdmin ? "Admin Dashboard" : "Dashboard"),
-        centerTitle: true,
-        actions: [
-          StreamBuilder<int>(
-            stream: NotificationService().getUnreadCountStream(
-              FirebaseAuth.instance.currentUser?.uid ?? '',
-            ),
-            builder: (context, snap) {
-              final count = snap.data ?? 0;
-              return IconButton(
-                tooltip: "Notifications",
-                icon: Badge(
-                  isLabelVisible: count > 0,
-                  label: Text('$count'),
-                  backgroundColor: Colors.redAccent,
-                  child: const Icon(Icons.notifications),
-                ),
-                onPressed: () {
-                  Navigator.pushNamed(context, Routes.notifications);
-                },
-              );
-            },
-          ),
-          if (role.toLowerCase() == "it technician")
-            IconButton(
-              tooltip: "Manage Labs",
-              icon: const Icon(Icons.computer),
-              onPressed: () {
-                Navigator.pushNamed(context, Routes.labList);
-              },
-            ),
-          IconButton(
-            icon: const Icon(Icons.power_settings_new),
-            onPressed: _logout,
-          ),
-        ],
+    // Filter complaints locally from cached memory (Zero extra Firebase reads!)
+    final allComplaints = appData.complaintsNewestFirst;
+    final roleScopedComplaints = isAdmin
+        ? allComplaints
+        : role.toLowerCase() == 'faculty'
+            ? allComplaints
+                .where((c) => (c['facultyName'] ?? '') == userName)
+                .toList()
+            : allComplaints;
+
+    final pendingCount = roleScopedComplaints
+        .where((c) => (c['status'] ?? '') == 'Pending')
+        .length;
+    final progressCount = roleScopedComplaints
+        .where((c) => (c['status'] ?? '') == 'In Progress')
+        .length;
+    final resolvedCount = roleScopedComplaints
+        .where((c) => (c['status'] ?? '') == 'Resolved')
+        .length;
+
+    final filteredComplaints = roleScopedComplaints.where((c) {
+      final st = (c['status'] ?? 'Pending').toString();
+      final lab = (c['lab'] ?? 'Unknown Lab').toString();
+      final cat = (c['issueCategory'] ?? 'Other').toString();
+
+      final statusOk = _selectedStatusChip == 'All' ||
+          st.toLowerCase() == _selectedStatusChip.toLowerCase();
+      final labOk = _selectedLabChip == 'All Labs' || lab == _selectedLabChip;
+      final catOk = _selectedCategoryChip == 'All' ||
+          cat.toLowerCase() == _selectedCategoryChip.toLowerCase();
+
+      return statusOk && labOk && catOk;
+    }).toList();
+
+    final availableLabs = <String>{
+      'All Labs',
+      ...appData.associatedLabs,
+      ...roleScopedComplaints
+          .map((c) => (c['lab'] ?? '').toString())
+          .where((s) => s.isNotEmpty),
+    }.toList();
+
+    final tourSteps = <TourStep>[
+      TourStep(
+        targetKey: _welcomeKey,
+        title: "Welcome to Your Command Center",
+        description:
+            "This header shows your active role, approval badge, and quick status summary.",
+        icon: Icons.verified_user_rounded,
       ),
-      body: ResponsiveWrapper(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(
-            ResponsiveUtils.getResponsivePadding(context),
+      TourStep(
+        targetKey: _statsKey,
+        title: "Real-Time Telemetry Counters",
+        description:
+            "Live ticket counts update automatically using our local delta-sync cache without re-fetching unchanged documents.",
+        icon: Icons.analytics_outlined,
+      ),
+      TourStep(
+        targetKey: _quickActionsKey,
+        title: "Digital Twin Labs & Management",
+        description:
+            "Jump into interactive 3D Lab Workstation maps, manage users, or export Excel reports from here.",
+        icon: Icons.computer_rounded,
+      ),
+      TourStep(
+        targetKey: _filterChipsKey,
+        title: "Instant Chip Filtering",
+        description:
+            "All old tab bars and dropdowns are replaced with one-tap Filter Chips. Filter by Status, Lab, or Category in 0ms.",
+        icon: Icons.tune_rounded,
+      ),
+      TourStep(
+        targetKey: _chatFabKey,
+        title: "Live IT Support Group Chat",
+        description:
+            "Tap here anytime to report an issue or update ticket statuses in the offline-cached IT Hub Chat.",
+        icon: Icons.forum_rounded,
+      ),
+    ];
+
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: Row(
+              children: [
+                const ExpressiveAppLogo(size: 34),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    isSuperAdmin
+                        ? "Super Admin Console"
+                        : isAdmin
+                            ? "Admin Workspace"
+                            : "IT Support Hub",
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                tooltip: "Interactive Guide Tour",
+                icon: const Icon(Icons.help_outline_rounded),
+                onPressed: () => setState(() => _showTour = true),
+              ),
+              StreamBuilder<int>(
+                stream: NotificationService().getUnreadCountStream(
+                  FirebaseAuth.instance.currentUser?.uid ?? '',
+                ),
+                builder: (context, snap) {
+                  final count = snap.data ?? 0;
+                  return IconButton(
+                    tooltip: "Notifications",
+                    icon: Badge(
+                      isLabelVisible: count > 0,
+                      label: Text('$count'),
+                      backgroundColor: AppTheme.errorColor,
+                      child: const Icon(Icons.notifications_outlined),
+                    ),
+                    onPressed: () =>
+                        Navigator.pushNamed(context, Routes.notifications),
+                  );
+                },
+              ),
+              IconButton(
+                tooltip: "Sign Out",
+                icon: const Icon(Icons.logout_rounded),
+                onPressed: _logout,
+              ),
+            ],
           ),
-          child: isAdmin
-              ? Column(
-                  children: [
-                    _welcomeCard(),
-                    SizedBox(height: 3.h),
-
-                    // --- ADMIN REAL-TIME STATS START ---
-
-                    // 1. Stream for Users Collection
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .snapshots(),
-                      builder: (context, userSnapshot) {
-                        // 2. Stream for Complaints Collection
-                        return StreamBuilder<QuerySnapshot>(
-                          stream: FirebaseFirestore.instance
-                              .collection('complaints')
-                              .snapshots(),
-                          builder: (context, complaintSnapshot) {
-                            // Handling Loading State
-                            if (!userSnapshot.hasData ||
-                                !complaintSnapshot.hasData) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            }
-
-                            // --- CALCULATING DATA ---
-                            final userDocs = userSnapshot.data!.docs;
-                            final complaintDocs = complaintSnapshot.data!.docs;
-
-                            // Users Stats
-                            final totalUsers = userDocs.length;
-                            final waitingApproval = userDocs.where((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              // Check if 'isApproved' exists and is false
-                              return data.containsKey('isApproved') &&
-                                  data['isApproved'] == false;
-                            }).length;
-
-                            // Complaints Stats
-                            final totalComplaints = complaintDocs.length;
-                            final resolvedCount = complaintDocs
-                                .where((d) => d['status'] == 'Resolved')
-                                .length;
-                            final pendingCount = complaintDocs
-                                .where((d) => d['status'] == 'Pending')
-                                .length;
-                            final progressCount = complaintDocs
-                                .where((d) => d['status'] == 'In Progress')
-                                .length;
-
-                            // --- DISPLAYING CARDS ---
-                            return Wrap(
-                              spacing: 2.w,
-                              runSpacing: 2.h,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                _statBox(
-                                  "Total Users",
-                                  totalUsers,
-                                  Colors.blue,
-                                  Icons.people,
+          body: ResponsiveWrapper(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                vertical: 20,
+                horizontal: ResponsiveUtils.getResponsivePadding(context),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 1. Welcome Banner
+                  Container(
+                    key: _welcomeKey,
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withOpacity(0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 16,
+                      runSpacing: 12,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "ACTIVE SESSION • LOCAL DELTA-CACHE ENABLED",
+                              style: TextStyle(
+                                color: AppTheme.accentGlow,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              userName.isEmpty ? "Welcome Back" : userName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSuperAdmin
+                                ? Colors.amber.withOpacity(0.18)
+                                : AppTheme.accentColor.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: isSuperAdmin
+                                  ? Colors.amber
+                                  : AppTheme.accentGlow,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isSuperAdmin
+                                    ? Icons.shield_rounded
+                                    : Icons.verified_user_rounded,
+                                size: 16,
+                                color: isSuperAdmin
+                                    ? Colors.amberAccent
+                                    : AppTheme.accentGlow,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isSuperAdmin
+                                    ? "Super Admin"
+                                    : (role.isEmpty ? "Approved User" : role),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
                                 ),
-                                _statBox(
-                                  "Waiting Approval",
-                                  waitingApproval,
-                                  Colors.teal,
-                                  Icons.hourglass_empty,
-                                ),
-                                _statBox(
-                                  "Total Complaints",
-                                  totalComplaints,
-                                  Colors.purple,
-                                  Icons.report_problem,
-                                ),
-                                _statBox(
-                                  "Resolved",
-                                  resolvedCount,
-                                  Colors.green,
-                                  Icons.check_circle,
-                                ),
-                                _statBox(
-                                  "In Progress",
-                                  progressCount,
-                                  Colors.orange,
-                                  Icons.sync,
-                                ),
-                                _statBox(
-                                  "Pending",
-                                  pendingCount,
-                                  Colors.red,
-                                  Icons.error,
-                                ),
-                              ],
-                            );
-                          },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 2. Responsive Telemetry Stat Grid
+                  Container(
+                    key: _statsKey,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth > 700;
+                        final cards = <Widget>[
+                          if (isAdmin) ...[
+                            _buildMetricTile(
+                              "Total Users",
+                              appData.totalUsersCount,
+                              AppTheme.infoColor,
+                              Icons.people_alt_rounded,
+                            ),
+                            _buildMetricTile(
+                              "Pending Approval",
+                              appData.waitingApprovalCount,
+                              Colors.teal,
+                              Icons.hourglass_top_rounded,
+                            ),
+                          ],
+                          _buildMetricTile(
+                            "Pending Tickets",
+                            pendingCount,
+                            AppTheme.errorColor,
+                            Icons.error_outline_rounded,
+                          ),
+                          _buildMetricTile(
+                            "In Progress",
+                            progressCount,
+                            AppTheme.warningColor,
+                            Icons.autorenew_rounded,
+                          ),
+                          _buildMetricTile(
+                            "Resolved",
+                            resolvedCount,
+                            AppTheme.successColor,
+                            Icons.task_alt_rounded,
+                          ),
+                        ];
+
+                        final cols = isWide ? cards.length : 2;
+                        final spacing = 12.0;
+                        final width =
+                            (constraints.maxWidth - (spacing * (cols - 1))) /
+                                cols;
+
+                        return Wrap(
+                          spacing: spacing,
+                          runSpacing: spacing,
+                          children: cards
+                              .map((c) => SizedBox(width: width, child: c))
+                              .toList(),
                         );
                       },
                     ),
+                  ),
 
-                    // --- ADMIN REAL-TIME STATS END ---
-                    SizedBox(height: 4.h),
-                    _dashboardButton(
-                      "Manage Users",
-                      "Add, edit or remove users",
-                      Icons.group,
-                      () => Navigator.pushNamed(context, Routes.manageUsers),
-                      Colors.teal,
+                  const SizedBox(height: 24),
+
+                  // 3. Quick Navigation Modules (Labs, Users, Analytics)
+                  Container(
+                    key: _quickActionsKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Workspace Modules",
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final cols = constraints.maxWidth > 800
+                                ? 3
+                                : constraints.maxWidth > 520
+                                    ? 2
+                                    : 1;
+                            final spacing = 12.0;
+                            final itemW =
+                                (constraints.maxWidth - (spacing * (cols - 1))) /
+                                    cols;
+
+                            final actions = <Widget>[
+                              if (isAdmin ||
+                                  role.toLowerCase() == 'it technician')
+                                SizedBox(
+                                  width: itemW,
+                                  child: _buildModuleCard(
+                                    title: "Digital Twin Labs",
+                                    subtitle:
+                                        "Interactive 3D PC matrix & hardware health",
+                                    icon: Icons.developer_board_rounded,
+                                    color: AppTheme.accentColor,
+                                    onTap: () => Navigator.pushNamed(
+                                      context,
+                                      Routes.labList,
+                                    ),
+                                  ),
+                                ),
+                              if (isAdmin)
+                                SizedBox(
+                                  width: itemW,
+                                  child: _buildModuleCard(
+                                    title: "Manage Users",
+                                    subtitle:
+                                        "Chip-filtered Faculty, Techs & approvals",
+                                    icon: Icons.manage_accounts_rounded,
+                                    color: AppTheme.secondaryColor,
+                                    onTap: () => Navigator.pushNamed(
+                                      context,
+                                      Routes.manageUsers,
+                                    ),
+                                  ),
+                                ),
+                              if (isAdmin)
+                                SizedBox(
+                                  width: itemW,
+                                  child: _buildModuleCard(
+                                    title: "Advanced Analytics",
+                                    subtitle:
+                                        "Multi-layer chip filters & Excel export",
+                                    icon: Icons.insights_rounded,
+                                    color: Colors.teal,
+                                    onTap: () => Navigator.pushNamed(
+                                      context,
+                                      Routes.filterComplaints,
+                                    ),
+                                  ),
+                                ),
+                              SizedBox(
+                                width: itemW,
+                                child: _buildModuleCard(
+                                  title: "IT Support Group Chat",
+                                  subtitle:
+                                      "Offline-cached live ticket dispatch room",
+                                  icon: Icons.forum_rounded,
+                                  color: AppTheme.successColor,
+                                  onTap: () =>
+                                      Navigator.pushNamed(context, Routes.chats),
+                                ),
+                              ),
+                              if (kIsWeb && isAdmin)
+                                SizedBox(
+                                  width: itemW,
+                                  child: _buildModuleCard(
+                                    title: "Export Full Log (.xlsx)",
+                                    subtitle:
+                                        "Download complete complaint spreadsheet",
+                                    icon: Icons.download_for_offline_rounded,
+                                    color: Colors.amber.shade800,
+                                    onTap: _exportAllComplaintsToExcel,
+                                  ),
+                                ),
+                            ];
+
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              children: actions,
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 2.h),
-                    _dashboardButton(
-                      "Filter Complaints",
-                      "Smart multi-layer filtering",
-                      Icons.filter_list,
-                      () =>
-                          Navigator.pushNamed(context, Routes.filterComplaints),
-                      Colors.deepPurple,
+                  ),
+
+                  const SizedBox(height: 26),
+
+                  // 4. Chip-Based Ticket Feed (Replaces old Dropdowns)
+                  Container(
+                    key: _filterChipsKey,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.borderColor),
                     ),
-                    SizedBox(height: 2.h),
-                    _dashboardButton(
-                      "Manage Labs",
-                      "View and Edit Labs",
-                      Icons.laptop_chromebook,
-                      () => Navigator.pushNamed(context, Routes.labList),
-                      Colors.blueAccent,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Live Support Tickets",
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              "${filteredComplaints.length} showing",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Status Filter Chips
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              "All",
+                              "Pending",
+                              "In Progress",
+                              "Resolved"
+                            ].map((st) {
+                              final selected = _selectedStatusChip == st;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(st),
+                                  selected: selected,
+                                  onSelected: (_) =>
+                                      setState(() => _selectedStatusChip = st),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+
+                        // Category Filter Chips
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              "All",
+                              "Hardware",
+                              "Software",
+                              "Network",
+                              "Exam",
+                              "Access",
+                              "Other"
+                            ].map((cat) {
+                              final selected = _selectedCategoryChip == cat;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: FilterChip(
+                                  label: Text(
+                                    cat == "All" ? "All Categories" : cat,
+                                  ),
+                                  selected: selected,
+                                  onSelected: (_) => setState(
+                                    () => _selectedCategoryChip = cat,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+
+                        // Lab Filter Chips (if multiple labs available)
+                        if (availableLabs.length > 1) ...[
+                          const SizedBox(height: 8),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: availableLabs.map((lab) {
+                                final selected = _selectedLabChip == lab;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ChoiceChip(
+                                    avatar: Icon(
+                                      Icons.computer,
+                                      size: 15,
+                                      color: selected
+                                          ? AppTheme.accentColor
+                                          : AppTheme.textSecondary,
+                                    ),
+                                    label: Text(lab),
+                                    selected: selected,
+                                    onSelected: (_) =>
+                                        setState(() => _selectedLabChip = lab),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
-                )
-              : role.toLowerCase() == "faculty"
-              ? _facultyDashboard()
-              : _itTechnicianDashboard(),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // 5. Filtered Tickets List
+                  if (filteredComplaints.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(36),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.borderColor),
+                      ),
+                      child: const Column(
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 48,
+                            color: AppTheme.textTertiary,
+                          ),
+                          SizedBox(height: 10),
+                          Text(
+                            "No matching tickets for the selected chip filters",
+                            style: TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ...filteredComplaints.map((c) => _buildTicketCard(c)),
+                ],
+              ),
+            ),
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            key: _chatFabKey,
+            onPressed: () => Navigator.pushNamed(context, Routes.chats),
+            icon: const Icon(Icons.chat_bubble_rounded),
+            label: const Text("IT Hub Chat"),
+          ),
         ),
+
+        // Interactive Game-Style Coach Mark Overlay
+        if (_showTour)
+          InteractiveTourOverlay(
+            steps: tourSteps,
+            onComplete: _completeTour,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMetricTile(
+    String label,
+    int count,
+    Color color,
+    IconData icon,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.25)),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.accentColor,
-        child: const Icon(Icons.chat),
-        onPressed: () => Navigator.pushNamed(context, Routes.chats),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _complaintCard(Map<String, dynamic> data) {
-    final status = data['status'] ?? 'Unknown';
-
+  Widget _buildModuleCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Card(
-      elevation: 2,
-      margin: EdgeInsets.only(bottom: 1.5.h),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: EdgeInsets.zero,
       child: InkWell(
-        onTap: () {
-          // Navigate to complaint detail if needed
-        },
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: EdgeInsets.all(
-            ResponsiveUtils.getResponsivePadding(
-              context,
-              mobile: 16,
-              tablet: 18,
-              desktop: 20,
-            ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 26),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textTertiary,
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTicketCard(Map<String, dynamic> data) {
+    final status = (data['status'] ?? 'Pending').toString();
+    final complaintId = (data['complaintId'] ?? '').toString();
+    final statusColor = AppTheme.getStatusColor(status);
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: complaintId.isEmpty
+            ? null
+            : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ComplaintDetailScreen(complaintId: complaintId),
+                  ),
+                );
+              },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      (data['issueCategory'] ?? 'General').toString(),
+                      style: const TextStyle(
+                        color: AppTheme.accentColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      data['issue'] ?? 'Issue',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
+                      (data['issue'] ?? 'Support Ticket').toString(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
                         color: AppTheme.textPrimary,
                       ),
                     ),
                   ),
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppTheme.getStatusColor(status),
+                      color: statusColor.withOpacity(0.14),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor),
                     ),
                     child: Text(
                       status,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: statusColor,
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 1.h),
+              const SizedBox(height: 10),
               Text(
-                "Category: ${data['issueCategory'] ?? 'N/A'}",
-                style: TextStyle(
-                  fontSize: 15.sp,
-                  color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w500,
+                (data['message'] ?? '').toString(),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textPrimary,
+                  height: 1.4,
                 ),
               ),
-              SizedBox(height: 0.8.h),
-              Text(
-                data['message'] ?? '',
-                style: TextStyle(fontSize: 15.sp, color: AppTheme.textPrimary),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              SizedBox(height: 1.h),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 3.w,
-                runSpacing: 0.8.h,
+                spacing: 14,
+                runSpacing: 6,
                 children: [
-                  _infoChip(Icons.location_on, data['lab'] ?? 'Unknown Lab'),
-                  _infoChip(Icons.person, data['facultyName'] ?? 'Unknown'),
-                  if ((data['resolvedByName'] ?? '').toString().isNotEmpty)
-                    _infoChip(Icons.check_circle, data['resolvedByName']),
+                  _metaBadge(
+                    Icons.computer_rounded,
+                    (data['lab'] ?? 'Unknown Lab').toString(),
+                  ),
+                  _metaBadge(
+                    Icons.person_outline_rounded,
+                    "By: ${data['facultyName'] ?? 'Faculty'}",
+                  ),
+                  _metaBadge(
+                    Icons.engineering_outlined,
+                    "Tech: ${data['assignedToName'] ?? 'Unassigned'}",
+                  ),
                 ],
               ),
             ],
@@ -1013,15 +1016,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _infoChip(IconData icon, String text) {
+  Widget _metaBadge(IconData icon, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: AppTheme.accentColor),
-        SizedBox(width: 1.w),
+        Icon(icon, size: 15, color: AppTheme.textSecondary),
+        const SizedBox(width: 4),
         Text(
-          text,
-          style: TextStyle(fontSize: 14.sp, color: AppTheme.textSecondary),
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
