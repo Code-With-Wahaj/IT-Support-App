@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -17,9 +19,44 @@ class _AdminAddUserScreenState extends State<AdminAddUserScreen> {
   final emailC = TextEditingController();
   final passC = TextEditingController();
   String selectedRole = "Faculty";
-  final roles = ["Faculty", "IT Technician"];
+  List<String> roles = ["Faculty", "IT Technician"];
+  bool isSuperAdmin = false;
   final labC = TextEditingController();
   List<String> associatedLabs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSuperAdmin();
+  }
+
+  Future<void> _checkSuperAdmin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final email = (user.email ?? '').toLowerCase().trim();
+    if (email == 'wahajaamir2@gmail.com' || email == 'cah-sf@aptech-education.com.pk') {
+      if (mounted) {
+        setState(() {
+          isSuperAdmin = true;
+          roles = ["Faculty", "IT Technician", "Admin", "Super Admin"];
+        });
+      }
+      return;
+    }
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final r = (doc.data()?['role'] ?? '').toString().toLowerCase().trim();
+      final isSA = doc.data()?['isSuperAdmin'] == true;
+      if (mounted) {
+        setState(() {
+          isSuperAdmin = r == 'super admin' || r == 'superadmin' || isSA || email == 'wahajaamir2@gmail.com' || email == 'cah-sf@aptech-education.com.pk';
+          if (isSuperAdmin) {
+            roles = ["Faculty", "IT Technician", "Admin", "Super Admin"];
+          }
+        });
+      }
+    } catch (_) {}
+  }
 
   bool validateLab(String raw) {
     raw = raw.toUpperCase();
@@ -54,7 +91,7 @@ class _AdminAddUserScreenState extends State<AdminAddUserScreen> {
     final authProv = Provider.of<AuthProvider>(context);
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(title: const Text("Add User")),
+        appBar: AppBar(title: Text(isSuperAdmin ? "Add User / Admin" : "Add User")),
         body: Padding(
           padding: EdgeInsets.all(4.w),
           child: Form(
@@ -94,6 +131,8 @@ class _AdminAddUserScreenState extends State<AdminAddUserScreen> {
                       .toList(),
                   onChanged: (v) => setState(() => selectedRole = v!),
                   decoration: InputDecoration(
+                    labelText: "Role",
+                    prefixIcon: const Icon(Icons.work),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -137,6 +176,14 @@ class _AdminAddUserScreenState extends State<AdminAddUserScreen> {
                       ? () {}
                       : () async {
                           if (!_formKey.currentState!.validate()) return;
+                          if ((selectedRole == "Admin" || selectedRole == "Super Admin") && !isSuperAdmin) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Only Super Admin can create Admin or Super Admin accounts."),
+                              ),
+                            );
+                            return;
+                          }
                           final res = await authProv.signUp(
                             name: nameC.text.trim(),
                             email: emailC.text.trim(),

@@ -55,7 +55,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     super.dispose();
   }
 
-  // --- LOGIC STARTS HERE (Untouched) ---
+  // --- LOGIC STARTS HERE ---
   resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -68,9 +68,51 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Password reset link sent to your email."),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.white),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Password reset link dispatched! Please check your email inbox.",
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 4),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        emailC.clear();
+      }
+    } on FirebaseAuthException catch (e) {
+      if (context.mounted) {
+        String msg = "Failed to send reset link.";
+        if (e.code == 'user-not-found') {
+          msg = "No registered account found with this email.";
+        } else if (e.code == 'invalid-email') {
+          msg = "The email address is improperly formatted.";
+        } else if (e.code == 'too-many-requests') {
+          msg = "Too many reset requests. Please wait a few moments.";
+        } else if (e.code == 'network-request-failed') {
+          msg = "Network error. Please check your internet connection.";
+        } else if (e.message != null && e.message!.isNotEmpty) {
+          msg = e.message!;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(child: Text(msg)),
+              ],
+            ),
+            backgroundColor: AppTheme.errorColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -79,9 +121,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -192,6 +234,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                       hint: "Enter your registered email",
                                       controller: emailC,
                                       prefixIcon: Icons.email_outlined,
+                                      validator: (v) {
+                                        if (v == null || v.trim().isEmpty) {
+                                          return "Email is required";
+                                        }
+                                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                                        if (!emailRegex.hasMatch(v.trim())) {
+                                          return "Enter a valid email address";
+                                        }
+                                        return null;
+                                      },
                                     ),
                                     SizedBox(height: 4.h),
                                     CustomButton(

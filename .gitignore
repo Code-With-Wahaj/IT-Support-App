@@ -59,3 +59,9 @@ android/local.properties
 *.env.*
 *.pem
 *.key
+
+# Local project artifacts
+project_dump.txt
+*.apk
+assets/animations/
+assets/lottie/

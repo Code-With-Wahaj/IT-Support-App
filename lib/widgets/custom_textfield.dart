@@ -9,6 +9,7 @@ class CustomTextField extends StatefulWidget {
   final TextEditingController controller;
   final IconData? prefixIcon;
   final Color textcolor;
+  final String? Function(String?)? validator;
 
   const CustomTextField({
     super.key,
@@ -18,6 +19,7 @@ class CustomTextField extends StatefulWidget {
     required this.controller,
     this.prefixIcon,
     this.textcolor = Colors.white,
+    this.validator,
   });
 
   @override
@@ -47,7 +49,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         TextFormField(
           controller: widget.controller,
           obscureText: widget.isPassword ? hide : false,
-          validator: (v) => v!.isEmpty ? "Required" : null,
+          validator: widget.validator ?? (v) => (v == null || v.isEmpty) ? "Required" : null,
           style: TextStyle(fontSize: 16.sp, color: AppTheme.textPrimary),
 
           decoration: InputDecoration(
