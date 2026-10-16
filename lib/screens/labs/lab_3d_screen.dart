@@ -181,10 +181,16 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
 
   Widget _toggleChip(String label, bool value, ValueChanged<bool> onChanged) {
     return FilterChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: TextStyle(
+          color: value ? Colors.white : AppTheme.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       selected: value,
-      selectedColor: AppTheme.successColor.withOpacity(0.18),
-      checkmarkColor: AppTheme.successColor,
+      selectedColor: AppTheme.successColor,
+      checkmarkColor: Colors.white,
       onSelected: onChanged,
     );
   }

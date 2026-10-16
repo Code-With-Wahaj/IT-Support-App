@@ -71,8 +71,9 @@ class AppTheme {
     ),
     chipTheme: ChipThemeData(
       backgroundColor: surfaceColor,
-      selectedColor: accentColor.withOpacity(0.15),
-      secondarySelectedColor: accentColor,
+      selectedColor: primaryColor,
+      secondarySelectedColor: primaryColor,
+      checkmarkColor: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       labelStyle: const TextStyle(
         fontSize: 13,
@@ -82,7 +83,7 @@ class AppTheme {
       secondaryLabelStyle: const TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
-        color: accentColor,
+        color: Colors.white,
       ),
       side: const BorderSide(color: borderColor),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),

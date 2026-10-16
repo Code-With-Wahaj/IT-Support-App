@@ -264,14 +264,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         targetKey: _quickActionsKey,
         title: "Digital Twin Labs & Management",
         description:
-            "Jump into interactive 3D Lab Workstation maps, manage users, or export Excel reports from here.",
+            "Access interactive 3D Lab Workstations, user management, and advanced filtered analytics.",
         icon: Icons.computer_rounded,
       ),
       TourStep(
         targetKey: _filterChipsKey,
         title: "Instant Chip Filtering",
         description:
-            "All old tab bars and dropdowns are replaced with one-tap Filter Chips. Filter by Status, Lab, or Category in 0ms.",
+            "Filter live complaints by Status, Category, or Lab with zero delay.",
         icon: Icons.tune_rounded,
       ),
       TourStep(
@@ -575,30 +575,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ),
                                 ),
-                              SizedBox(
-                                width: itemW,
-                                child: _buildModuleCard(
-                                  title: "IT Support Group Chat",
-                                  subtitle:
-                                      "Offline-cached live ticket dispatch room",
-                                  icon: Icons.forum_rounded,
-                                  color: AppTheme.successColor,
-                                  onTap: () =>
-                                      Navigator.pushNamed(context, Routes.chats),
-                                ),
-                              ),
-                              if (kIsWeb && isAdmin)
-                                SizedBox(
-                                  width: itemW,
-                                  child: _buildModuleCard(
-                                    title: "Export Full Log (.xlsx)",
-                                    subtitle:
-                                        "Download complete complaint spreadsheet",
-                                    icon: Icons.download_for_offline_rounded,
-                                    color: Colors.amber.shade800,
-                                    onTap: _exportAllComplaintsToExcel,
-                                  ),
-                                ),
+
+
                             ];
 
                             return Wrap(
@@ -663,8 +641,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: ChoiceChip(
-                                  label: Text(st),
+                                  label: Text(
+                                    st,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? Colors.white
+                                          : AppTheme.textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                                   selected: selected,
+                                  selectedColor: AppTheme.primaryColor,
                                   onSelected: (_) =>
                                       setState(() => _selectedStatusChip = st),
                                 ),
@@ -693,8 +680,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: FilterChip(
                                   label: Text(
                                     cat == "All" ? "All Categories" : cat,
+                                    style: TextStyle(
+                                      color: selected
+                                          ? Colors.white
+                                          : AppTheme.textPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                   selected: selected,
+                                  selectedColor: AppTheme.primaryColor,
+                                  checkmarkColor: Colors.white,
                                   onSelected: (_) => setState(
                                     () => _selectedCategoryChip = cat,
                                   ),
@@ -719,11 +714,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       Icons.computer,
                                       size: 15,
                                       color: selected
-                                          ? AppTheme.accentColor
+                                          ? Colors.white
                                           : AppTheme.textSecondary,
                                     ),
-                                    label: Text(lab),
+                                    label: Text(
+                                      lab,
+                                      style: TextStyle(
+                                        color: selected
+                                            ? Colors.white
+                                            : AppTheme.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                     selected: selected,
+                                    selectedColor: AppTheme.primaryColor,
                                     onSelected: (_) =>
                                         setState(() => _selectedLabChip = lab),
                                   ),

@@ -20,30 +20,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<_OnboardingSlide> _slides = const [
     _OnboardingSlide(
-      badge: "AI-ASSISTED ROUTING",
-      title: "Auto-Detected Lab & Issue Dispatch",
+      badge: "LAB COMPLAINTS",
+      title: "Report a lab issue in seconds",
       description:
-          "Simply type a message like 'Lab 104 PC mouse not working'. The system automatically detects the lab, classifies the hardware/software issue, and alerts the assigned IT technician.",
+          "Describe the problem with your lab or PC. IT Hub identifies the lab and issue, then notifies the assigned technician.",
       lottieAsset: "assets/lottie/it_hub_lottie.json",
-      fallbackIcon: Icons.bolt_rounded,
+      fallbackIcon: Icons.support_agent_rounded,
     ),
     _OnboardingSlide(
-      badge: "DIGITAL TWIN LABS",
-      title: "Interactive 3D Lab Workstation Matrix",
+      badge: "LAB MANAGEMENT",
+      title: "Know the health of every workstation",
       description:
-          "Inspect every workstation's CPU, monitor, keyboard, cables, RAM, and SSD status in real time. Filter healthy vs faulty PCs with a single tap.",
+          "Explore your labs, check each PC's hardware and cables, and keep specifications and fault notes up to date.",
       lottieAsset: "assets/lottie/lab_twin_lottie.json",
       fallbackIcon: Icons.grid_view_rounded,
     ),
     _OnboardingSlide(
-      badge: "LOCAL CACHE ENGINE",
-      title: "Instant Offline-First Group Chat",
+      badge: "IT SUPPORT",
+      title: "Keep support in one conversation",
       description:
-          "Messages and ticket statuses are cached locally on your device for zero-lag loading and minimal cloud reads. Approved accounts can log in immediately.",
+          "Report issues, follow ticket progress, and coordinate with your IT team from the support chat.",
       lottieAsset: "assets/lottie/instant_chat_lottie.json",
       fallbackIcon: Icons.forum_rounded,
     ),
   ];
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
@@ -54,13 +60,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Scaffold(
       backgroundColor: AppTheme.primaryColor,
       body: Stack(
         children: [
-          const AnimatedNetworkBackground(
-            color: AppTheme.accentColor,
-            backgroundColor: AppTheme.primaryColor,
+          TickerMode(
+            enabled: !reduceMotion,
+            child: const AnimatedNetworkBackground(
+              color: AppTheme.accentColor,
+              backgroundColor: AppTheme.primaryColor,
+            ),
           ),
           SafeArea(
             child: Center(
@@ -73,61 +83,82 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   child: Column(
                     children: [
-                      // Top Bar
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const ExpressiveAppLogo(size: 44, showBadgeText: true),
-                          TextButton(
-                            onPressed: _completeOnboarding,
-                            child: const Text(
-                              "Skip",
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      // Top Bar - Only Skip button, no logo or text
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _completeOnboarding,
+                          child: const Text(
+                            "Skip",
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // PageView
                       Expanded(
                         child: PageView.builder(
                           controller: _pageController,
                           itemCount: _slides.length,
-                          onPageChanged: (idx) => setState(() => _currentIndex = idx),
+                          onPageChanged: (idx) =>
+                              setState(() => _currentIndex = idx),
                           itemBuilder: (context, idx) {
                             final item = _slides[idx];
                             return SingleChildScrollView(
                               child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 12),
-                                padding: const EdgeInsets.all(28),
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryLight.withOpacity(0.78),
+                                  color: AppTheme.primaryLight,
                                   borderRadius: BorderRadius.circular(24),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.12),
+                                    color: Colors.white.withValues(alpha: 0.12),
                                   ),
                                 ),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    SizedBox(
-                                      height: 210,
-                                      width: 210,
-                                      child: Lottie.asset(
-                                        item.lottieAsset,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (_, __, ___) => Center(
-                                          child: Icon(
-                                            item.fallbackIcon,
-                                            size: 54,
-                                            color: Colors.white,
+                                    LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final size = constraints.maxWidth.clamp(
+                                          0.0,
+                                          320.0,
+                                        );
+                                        return ExcludeSemantics(
+                                          child: SizedBox.square(
+                                            dimension: size,
+                                            child: Lottie.asset(
+                                              item.lottieAsset,
+                                              fit: BoxFit.contain,
+                                              frameRate: FrameRate.composition,
+                                              animate:
+                                                  idx == _currentIndex &&
+                                                  !reduceMotion,
+                                              controller: reduceMotion
+                                                  ? const AlwaysStoppedAnimation<
+                                                      double
+                                                    >(0.64)
+                                                  : null,
+                                              errorBuilder: (_, __, ___) =>
+                                                  Center(
+                                                    child: Icon(
+                                                      item.fallbackIcon,
+                                                      size: 64,
+                                                      color:
+                                                          AppTheme.accentGlow,
+                                                    ),
+                                                  ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
+                                        );
+                                      },
                                     ),
                                     const SizedBox(height: 16),
                                     Container(
@@ -136,10 +167,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.accentColor.withOpacity(0.18),
+                                        color: AppTheme.accentColor.withValues(
+                                          alpha: 0.18,
+                                        ),
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
-                                          color: AppTheme.accentGlow.withOpacity(0.4),
+                                          color: AppTheme.accentGlow.withValues(
+                                            alpha: 0.4,
+                                          ),
                                         ),
                                       ),
                                       child: Text(
@@ -168,7 +203,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                       item.description,
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.78),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.78,
+                                        ),
                                         fontSize: 15,
                                         height: 1.55,
                                       ),
@@ -181,47 +218,64 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ),
 
-                      // Bottom Controls + ChoiceChip-like step indicators
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      // Bottom Controls - Centered Progress Indicator & Next/Sign in button below it
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: List.generate(_slides.length, (i) {
                               final active = i == _currentIndex;
                               return AnimatedContainer(
-                                duration: const Duration(milliseconds: 250),
-                                margin: const EdgeInsets.only(right: 8),
+                                duration: reduceMotion
+                                    ? Duration.zero
+                                    : const Duration(milliseconds: 250),
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
                                 width: active ? 28 : 10,
                                 height: 10,
                                 decoration: BoxDecoration(
                                   color: active
                                       ? AppTheme.accentGlow
-                                      : Colors.white.withOpacity(0.25),
+                                      : Colors.white.withValues(
+                                          alpha: 0.25,
+                                        ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               );
                             }),
                           ),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              if (_currentIndex < _slides.length - 1) {
-                                _pageController.nextPage(
-                                  duration: const Duration(milliseconds: 350),
-                                  curve: Curves.easeOutCubic,
-                                );
-                              } else {
-                                _completeOnboarding();
-                              }
-                            },
-                            icon: Icon(
-                              _currentIndex == _slides.length - 1
-                                  ? Icons.login_rounded
-                                  : Icons.arrow_forward_rounded,
-                            ),
-                            label: Text(
-                              _currentIndex == _slides.length - 1
-                                  ? "Proceed to Login"
-                                  : "Next",
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                if (_currentIndex < _slides.length - 1) {
+                                  if (reduceMotion) {
+                                    _pageController.jumpToPage(_currentIndex + 1);
+                                  } else {
+                                    _pageController.nextPage(
+                                      duration: const Duration(milliseconds: 350),
+                                      curve: Curves.easeOutCubic,
+                                    );
+                                  }
+                                } else {
+                                  _completeOnboarding();
+                                }
+                              },
+                              icon: Icon(
+                                _currentIndex == _slides.length - 1
+                                    ? Icons.login_rounded
+                                    : Icons.arrow_forward_rounded,
+                              ),
+                              label: Text(
+                                _currentIndex == _slides.length - 1
+                                    ? "Sign in"
+                                    : "Next",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                         ],

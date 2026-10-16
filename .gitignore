@@ -64,10 +64,12 @@ android/local.properties
 project_dump.txt
 *.apk
 assets/animations/
-assets/lottie/
 
 *.zip
 releases/
 
 output/
 flutter_*.log
+
+assets/lottie/
+tools/

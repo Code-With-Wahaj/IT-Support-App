@@ -82,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen>
                     const ExpressiveAppLogo(size: 110),
                     SizedBox(height: 3.5.h),
                     const Text(
-                      "APTECH IT NEXUS",
+                      "APTECH IT HUB",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
@@ -93,7 +93,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Smart Support • Digital Lab Twin • Zero-Lag Sync",
+                      "Lab Management • Complaints • IT Support",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.7),
