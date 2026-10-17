@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // CORE SECURITY & RBAC HELPER FUNCTIONS
+    // =========================================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'wahajaamir2@gmail.com' ||
+        request.auth.token.email == 'cah-sf@aptech-education.com.pk' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         (getUserData().isSuperAdmin == true ||
+          getUserData().role == 'Super Admin' ||
+          getUserData().role == 'super admin'))
+      );
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         (getUserData().role == 'Admin' ||
+          getUserData().role == 'admin'))
+      );
+    }
+
+    function isTechnician() {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         (getUserData().role == 'IT Technician' ||
+          getUserData().role == 'technician'))
+      );
+    }
+
+    function isApproved() {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         getUserData().isApproved == true)
+      );
+    }
+
+    // =========================================================================
+    // USERS COLLECTION RBAC (Zero unauthorized read, zero privilege escalation)
+    // =========================================================================
+    match /users/{userId} {
+      // Normal users can ONLY read their own profile.
+      // Only Admins can list and read all profiles!
+      allow read: if isOwner(userId) || isAdmin();
+
+      // Account Creation:
+      // Normal signup: Can ONLY create their own doc with role 'Faculty' or 'IT Technician',
+      // isApproved: false, and cannot self-assign Super Admin.
+      // Admin: Can create any user document.
+      allow create: if (
+        isAdmin() || (
+          isOwner(userId) &&
+          request.resource.data.uid == request.auth.uid &&
+          (request.resource.data.role == 'Faculty' || request.resource.data.role == 'IT Technician') &&
+          request.resource.data.isApproved == false &&
+          (!('isSuperAdmin' in request.resource.data) || request.resource.data.isSuperAdmin == false)
+        )
+      );
+
+      // Account Updates:
+      // Admins can update any user (including roles, approval, labs).
+      // Normal users can ONLY update their own doc and are strictly FORBIDDEN from modifying
+      // their 'role', 'isApproved', 'isSuperAdmin', or 'uid' fields!
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isApproved', 'isSuperAdmin', 'uid'])
+      );
+
+      // Account Deletion:
+      // ONLY Admins can delete users!
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // COMPLAINTS COLLECTION RBAC
+    // =========================================================================
+    match /complaints/{complaintId} {
+      // Must be authenticated and approved to view complaints
+      allow read: if isApproved();
+
+      // Complaint Creation:
+      // facultyId MUST strictly match the authenticated user's uid (prevents impersonation)
+      allow create: if isApproved() && (
+        request.resource.data.facultyId == request.auth.uid || isAdmin()
+      );
+
+      // Complaint Updates:
+      // Technicians and Admins can update status, assignment, resolution notes, timeTaken.
+      // Faculty can only update if they are the author and ticket is not resolved.
+      allow update: if isApproved() && (
+        isTechnician() ||
+        (resource.data.facultyId == request.auth.uid && resource.data.status != 'Resolved')
+      );
+
+      // Complaint Deletion:
+      // ONLY Admins can delete complaints!
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // NOTIFICATIONS COLLECTION RBAC
+    // =========================================================================
+    match /notifications/{notifId} {
+      // Users can only read and manage their own notifications
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+
+      // System dispatch / notifications creation
+      allow create: if isAuthenticated();
+
+      // Users can mark their notifications as read or delete them
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // =========================================================================
+    // LABS & WORKSTATIONS COLLECTION RBAC
+    // =========================================================================
+    match /labs/{labId} {
+      allow read: if isAuthenticated();
+      allow write: if isTechnician();
+    }
+
+    match /workstations/{pcId} {
+      allow read: if isAuthenticated();
+      allow write: if isTechnician();
+    }
+
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

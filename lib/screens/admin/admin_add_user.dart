@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
+import '../../routes/route_guard.dart';
 import 'package:sizer/sizer.dart';
 
 class AdminAddUserScreen extends StatefulWidget {
@@ -81,16 +82,18 @@ class _AdminAddUserScreenState extends State<AdminAddUserScreen> {
         : raw == "IBR"
         ? "IBR Lab"
         : "Lab $raw";
-    if (!associatedLabs.contains(formatted))
+    if (!associatedLabs.contains(formatted)) {
       setState(() => associatedLabs.add(formatted));
+    }
     labC.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     final authProv = Provider.of<AuthProvider>(context);
-    return SafeArea(
-      child: Scaffold(
+    return AdminScreenGuard(
+      child: SafeArea(
+        child: Scaffold(
         appBar: AppBar(title: Text(isSuperAdmin ? "Add User / Admin" : "Add User")),
         body: Padding(
           padding: EdgeInsets.all(4.w),
@@ -208,6 +211,7 @@ class _AdminAddUserScreenState extends State<AdminAddUserScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

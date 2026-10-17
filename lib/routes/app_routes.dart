@@ -24,6 +24,27 @@ class Routes {
   static const String manageUsers = '/manage_users';
   static const String labList = '/lab_list';
   static const String notifications = '/notifications';
+
+  static const List<String> publicRoutes = [
+    splash,
+    onboarding,
+    login,
+    forgot,
+  ];
+
+  static const List<String> adminRoutes = [
+    adminAddUser,
+    manageUsers,
+  ];
+
+  static const List<String> authRoutes = [
+    dashboard,
+    chats,
+    filterComplaints,
+    complaintDetail,
+    labList,
+    notifications,
+  ];
 }
 
 final Map<String, Widget Function(BuildContext)> routes = {
