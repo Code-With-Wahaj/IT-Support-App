@@ -20,7 +20,7 @@ class ExpressiveAppLogo extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(size * 0.24),
           child: Image.asset(
-            'assets/it_hub_logo.png',
+            'assets/logo.png',
             width: size,
             height: size,
             fit: BoxFit.contain,

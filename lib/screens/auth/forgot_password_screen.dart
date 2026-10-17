@@ -171,7 +171,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _buildLogo('assets/aptech_logo.png', context),
-                        _buildLogo('assets/it_hub_logo.png', context),
+                        _buildLogo('assets/logo.png', context),
                       ],
                     ),
                   ),
