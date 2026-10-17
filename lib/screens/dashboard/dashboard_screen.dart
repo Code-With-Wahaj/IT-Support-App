@@ -335,8 +335,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          body: ResponsiveWrapper(
-            child: SingleChildScrollView(
+          body: SafeArea(
+            top: false,
+            child: ResponsiveWrapper(
+              child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
                 vertical: 20,
                 horizontal: ResponsiveUtils.getResponsivePadding(context),
@@ -776,7 +778,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ),
-          floatingActionButton: FloatingActionButton.extended(
+        ),
+        floatingActionButton: FloatingActionButton.extended(
             key: _chatFabKey,
             onPressed: () => Navigator.pushNamed(context, Routes.chats),
             icon: const Icon(Icons.chat_bubble_rounded),
