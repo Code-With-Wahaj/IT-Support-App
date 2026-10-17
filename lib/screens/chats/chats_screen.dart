@@ -163,25 +163,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     _scrollToNewest();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.bolt_rounded, color: AppTheme.accentGlow),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text("⚡ Dispatched in 3s: $lab • $issue"),
-              ),
-            ],
-          ),
-          duration: const Duration(seconds: 2),
-          backgroundColor: AppTheme.primaryColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   void _showLabPicker() {
@@ -841,11 +822,20 @@ class _ChatScreenState extends State<ChatScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.successColor,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                minimumSize: Size.zero,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                minimumSize: const Size(0, 38),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(19),
+                                ),
                               ),
-                              icon: const Icon(Icons.send_rounded, size: 14),
-                              label: const Text("Send Now", style: TextStyle(fontSize: 12)),
+                              icon: const Icon(Icons.send_rounded, size: 15),
+                              label: const Text(
+                                "Send Now",
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ],
 
