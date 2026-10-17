@@ -14,12 +14,13 @@ class FilterComplaintsProvider extends ChangeNotifier {
   final List<String> filterTypes = ["IT Technician", "Faculty", "Issue", "Lab"];
 
   final List<String> labs = [
-    // Lab 101-110
-    for (int i = 101; i <= 110; i++) "Lab $i",
-    // Lab 201-220
-    for (int i = 201; i <= 220; i++) "Lab $i",
-    // Named labs
-    "JBR Lab",
+    // 1st Floor Labs
+    for (int i = 101; i <= 104; i++) "Lab $i",
+    // 2nd Floor Labs
+    for (int i = 201; i <= 224; i++) "Lab $i",
+    // Special Rooms
+    "JBR Room",
+    "Faculty Room",
     "IBR Lab",
   ];
 
@@ -55,13 +56,60 @@ class FilterComplaintsProvider extends ChangeNotifier {
 
   Future<void> _loadUsers(String role) async {
     try {
-      final snap = await _firestore.collection('users').where('role', isEqualTo: role).get();
-      final list = snap.docs.map((d) => (d.data() as Map)['name']?.toString() ?? '').where((s) => s.isNotEmpty).toList();
-      if (role == "IT Technician") itTechnicians = list;
-      else faculties = list;
+      final namesSet = <String>{};
+
+      // 1. Fetch from users collection
+      try {
+        final snap = await _firestore.collection('users').get();
+        for (var d in snap.docs) {
+          final data = d.data();
+          final r = (data['role'] ?? '').toString().toLowerCase().trim();
+          final name = (data['name'] ?? '').toString().trim();
+          if (name.isNotEmpty) {
+            if (role.toLowerCase() == 'faculty' && (r == 'faculty' || r.isEmpty)) {
+              namesSet.add(name);
+            } else if (role.toLowerCase() == 'it technician' &&
+                (r.contains('technician') || r == 'it technician')) {
+              namesSet.add(name);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint("Note: users collection fetch restricted by RBAC or offline: $e");
+      }
+
+      // 2. Supplement from complaints collection (accessible to all authenticated users)
+      try {
+        final complaintSnap = await _firestore
+            .collection('complaints')
+            .orderBy('timestamp', descending: true)
+            .limit(100)
+            .get();
+        for (var doc in complaintSnap.docs) {
+          final data = doc.data();
+          final fName = (data['facultyName'] ?? '').toString().trim();
+          if (fName.isNotEmpty && role.toLowerCase() == 'faculty') {
+            namesSet.add(fName);
+          }
+          final techName = (data['assignedToName'] ?? '').toString().trim();
+          if (techName.isNotEmpty &&
+              techName != 'Not Assigned' &&
+              role.toLowerCase() == 'it technician') {
+            namesSet.add(techName);
+          }
+        }
+      } catch (e) {
+        debugPrint("Complaints names supplement note: $e");
+      }
+
+      final sorted = namesSet.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      if (role == "IT Technician") {
+        itTechnicians = sorted;
+      } else {
+        faculties = sorted;
+      }
       notifyListeners();
     } catch (e) {
-      // non-fatal: keep lists empty
       debugPrint("Failed to load users ($role): $e");
     }
   }

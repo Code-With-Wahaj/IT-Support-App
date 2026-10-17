@@ -14,7 +14,7 @@ class AppDataProvider extends ChangeNotifier {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Map of complaintId -> Map<String, dynamic> (sorted newest or oldest as needed)
+  /// Map of complaintId -> `Map<String, dynamic>` (sorted newest or oldest as needed)
   final Map<String, Map<String, dynamic>> _complaintsMap = {};
   Map<String, dynamic>? _currentUserProfile;
 
@@ -24,6 +24,15 @@ class AppDataProvider extends ChangeNotifier {
   bool isInitialized = false;
   int totalUsersCount = 0;
   int waitingApprovalCount = 0;
+
+  // Lazy Loading & Pagination State (10 complaints per page)
+  static const int _pageSize = 10;
+  bool _isLoadingMore = false;
+  bool _hasMoreComplaints = true;
+  DocumentSnapshot? _lastVisibleDoc;
+
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMoreComplaints => _hasMoreComplaints;
 
   /// Returns complaints sorted newest-first (for Dashboard)
   List<Map<String, dynamic>> get complaintsNewestFirst {
@@ -89,7 +98,7 @@ class AppDataProvider extends ChangeNotifier {
     });
   }
 
-  /// 2. Attach single shared Firestore listener using DocumentChanges delta updates
+  /// 2. Attach single shared Firestore listener using DocumentChanges delta updates (limited to 10 newest)
   Future<void> bindSessionStreams(String uid) async {
     // Load user profile once and cache locally
     try {
@@ -106,20 +115,26 @@ class AppDataProvider extends ChangeNotifier {
 
     // Cancel any existing subscription before starting a single shared listener
     await _deltaSubscription?.cancel();
+    _lastVisibleDoc = null;
+    _hasMoreComplaints = true;
 
-    // Enable Firestore persistence + listen only to docChanges
+    // Enable Firestore persistence + listen only to the latest 10 complaints
     _deltaSubscription = _db
         .collection('complaints')
-        .orderBy('timestamp', descending: false)
+        .orderBy('timestamp', descending: true)
+        .limit(_pageSize)
         .snapshots(includeMetadataChanges: false)
         .listen((snapshot) async {
       bool changed = false;
+
+      if (snapshot.docs.isNotEmpty && _lastVisibleDoc == null) {
+        _lastVisibleDoc = snapshot.docs.last;
+      }
+
       for (final change in snapshot.docChanges) {
         final docId = change.doc.id;
-        if (change.type == DocumentChangeType.removed) {
-          _complaintsMap.remove(docId);
-          changed = true;
-        } else {
+        // Don't remove documents when they naturally fall outside the limit(10) window
+        if (change.type != DocumentChangeType.removed) {
           final data = change.doc.data();
           if (data != null) {
             final sanitized = _sanitizeMap(data);
@@ -147,6 +162,49 @@ class AppDataProvider extends ChangeNotifier {
         }).length;
         notifyListeners();
       });
+    }
+  }
+
+  /// Lazy load next batch of older complaints on demand as user scrolls
+  Future<void> loadMoreComplaints() async {
+    if (_isLoadingMore || !_hasMoreComplaints) return;
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      Query query = _db
+          .collection('complaints')
+          .orderBy('timestamp', descending: true)
+          .limit(_pageSize);
+
+      if (_lastVisibleDoc != null) {
+        query = query.startAfterDocument(_lastVisibleDoc!);
+      }
+
+      final snap = await query.get();
+      if (snap.docs.isEmpty) {
+        _hasMoreComplaints = false;
+      } else {
+        _lastVisibleDoc = snap.docs.last;
+        if (snap.docs.length < _pageSize) {
+          _hasMoreComplaints = false;
+        }
+        for (final doc in snap.docs) {
+          final docId = doc.id;
+          final data = doc.data() as Map<String, dynamic>?;
+          if (data != null) {
+            final sanitized = _sanitizeMap(data);
+            sanitized['complaintId'] = docId;
+            _complaintsMap[docId] = sanitized;
+          }
+        }
+        await _persistComplaintsToDisk();
+      }
+    } catch (e) {
+      debugPrint('Error loading more complaints: $e');
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
     }
   }
 
@@ -194,5 +252,6 @@ class AppDataProvider extends ChangeNotifier {
     _deltaSubscription = null;
     _usersSummarySubscription?.cancel();
     _usersSummarySubscription = null;
+    _lastVisibleDoc = null;
   }
 }
