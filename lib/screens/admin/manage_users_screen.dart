@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/app_data_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
+import '../../routes/route_guard.dart';
 import 'user_dialogs.dart';
 
 /// Completely TabBar-free Manage Users Screen!
@@ -41,8 +42,9 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
       if (isSuperAdmin) "Admin",
     ];
 
-    return Scaffold(
-      appBar: AppBar(
+    return AdminScreenGuard(
+      child: Scaffold(
+        appBar: AppBar(
         title: Text(isSuperAdmin ? "Manage Users & Admins" : "Manage Users"),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -432,6 +434,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

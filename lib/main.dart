@@ -6,6 +6,7 @@ import 'package:sizer/sizer.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'routes/app_routes.dart';
+import 'routes/route_guard.dart';
 import 'providers/auth_provider.dart';
 import 'providers/app_data_provider.dart';
 import 'providers/filter_complaint_provider.dart';
@@ -39,7 +40,7 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             scrollBehavior: const NoScrollbarBehavior(),
             initialRoute: Routes.splash,
-            routes: routes,
+            onGenerateRoute: AppRouteGuard.generateRoute,
           );
         },
       ),
