@@ -9,22 +9,35 @@ class ComplaintService {
 
   final User? user = FirebaseAuth.instance.currentUser;
 
-  /// Create a new complaint with LAB + ISSUE auto-detection
-  Future<void> createComplaint({required String message}) async {
+  /// Create a new complaint with LAB + ISSUE auto-detection or explicit parameters
+  Future<void> createComplaint({
+    required String message,
+    String? explicitLab,
+    String? explicitIssue,
+    String? explicitCategory,
+  }) async {
     if (user == null) return;
 
     String complaintId = const Uuid().v4();
 
-    /// STEP 1 — Detect LAB
-    String detectedLab = _detectLab(message);
+    /// STEP 1 — Detect LAB or use explicit
+    String detectedLab = (explicitLab != null && explicitLab.isNotEmpty)
+        ? explicitLab
+        : _detectLab(message);
 
-    /// STEP 2 — Remove LAB from message before checking issues
-    String msgWithoutLab = message.toLowerCase().replaceAll(RegExp(r"\d+"), "");
+    /// STEP 2 — Detect Issue + Category or use explicit
+    Map<String, String> issueData;
+    if (explicitIssue != null && explicitIssue.isNotEmpty) {
+      issueData = {
+        'issue': explicitIssue,
+        'category': explicitCategory ?? 'Other',
+      };
+    } else {
+      String msgWithoutLab = message.toLowerCase().replaceAll(RegExp(r"\d+"), "");
+      issueData = _detectIssue(msgWithoutLab);
+    }
 
-    /// STEP 3 — Detect Issue + Category
-    Map<String, String> issueData = _detectIssue(msgWithoutLab);
-
-    /// STEP 4 — Find Technician for this lab
+    /// STEP 3 — Find Technician for this lab
     QuerySnapshot techSnap = await FirebaseFirestore.instance
         .collection('users')
         .where('role', isEqualTo: 'IT Technician')
@@ -41,7 +54,7 @@ class ComplaintService {
       assignedToName = tech['name'] ?? 'Not Assigned';
     }
 
-    /// STEP 5 — Create Complaint
+    /// STEP 4 — Create Complaint
     await complaints.doc(complaintId).set({
       'complaintId': complaintId,
       'facultyId': user!.uid,
@@ -49,7 +62,7 @@ class ComplaintService {
       'message': message,
       'timestamp': FieldValue.serverTimestamp(),
 
-      // Auto-detected additions
+      // Auto-detected or explicit additions
       'lab': detectedLab,
       'issue': issueData['issue'],
       'issueCategory': issueData['category'],
@@ -93,7 +106,7 @@ class ComplaintService {
   String _detectLab(String text) {
     final msg = text.toLowerCase();
 
-    // Detect numbers within 101–120 or 201–220
+    // Detect numbers within 101–104 or 201–224
     final regex = RegExp(r"\b(\d{3})\b");
 
     final matches = regex.allMatches(msg);
@@ -101,14 +114,15 @@ class ComplaintService {
     for (var m in matches) {
       int? room = int.tryParse(m.group(0)!);
       if (room != null) {
-        if ((room >= 101 && room <= 120) || (room >= 201 && room <= 220)) {
+        if ((room >= 101 && room <= 104) || (room >= 201 && room <= 224)) {
           return "Lab $room";
         }
       }
     }
 
-    // Detect room codes like JBR, IBR
-    if (msg.contains("jbr")) return "JBR Lab";
+    // Detect room codes like JBR, Faculty Room
+    if (msg.contains("faculty")) return "Faculty Room";
+    if (msg.contains("jbr")) return "JBR Room";
     if (msg.contains("ibr")) return "IBR Lab";
 
     return "Unknown Lab";

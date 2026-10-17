@@ -43,10 +43,12 @@ class FilterComplaintsScreen extends StatelessWidget {
                   ),
               ],
             ),
-            body: ResponsiveWrapper(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            body: SafeArea(
+              top: false,
+              child: ResponsiveWrapper(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   const SizedBox(height: 16),
                   // Chip-Based Dimension Selector Card
                   Container(
@@ -217,7 +219,7 @@ class FilterComplaintsScreen extends StatelessWidget {
                                           vertical: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: color.withOpacity(0.15),
+                                          color: color.withValues(alpha: 0.15),
                                           borderRadius:
                                               BorderRadius.circular(12),
                                           border: Border.all(color: color),
@@ -239,9 +241,10 @@ class FilterComplaintsScreen extends StatelessWidget {
                 ],
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
+}
 }
