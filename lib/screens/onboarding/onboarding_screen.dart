@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
-import '../../widgets/expressive_logo.dart';
 import '../../widgets/animations/network_background.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -75,11 +74,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           SafeArea(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 680),
+                constraints: const BoxConstraints(maxWidth: 480),
                 child: Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: ResponsiveUtils.getResponsivePadding(context),
-                    vertical: 16,
+                    vertical: 12,
                   ),
                   child: Column(
                     children: [
@@ -98,123 +97,135 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
 
-                      // PageView
+                      // PageView - Enforce single view without scrolling
                       Expanded(
-                        child: PageView.builder(
-                          controller: _pageController,
-                          itemCount: _slides.length,
-                          onPageChanged: (idx) =>
-                              setState(() => _currentIndex = idx),
-                          itemBuilder: (context, idx) {
-                            final item = _slides[idx];
-                            return SingleChildScrollView(
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryLight,
-                                  borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        final size = constraints.maxWidth.clamp(
-                                          0.0,
-                                          320.0,
-                                        );
-                                        return ExcludeSemantics(
-                                          child: SizedBox.square(
-                                            dimension: size,
-                                            child: Lottie.asset(
-                                              item.lottieAsset,
-                                              fit: BoxFit.contain,
-                                              frameRate: FrameRate.composition,
-                                              animate:
-                                                  idx == _currentIndex &&
-                                                  !reduceMotion,
-                                              controller: reduceMotion
-                                                  ? const AlwaysStoppedAnimation<
-                                                      double
-                                                    >(0.64)
-                                                  : null,
-                                              errorBuilder: (_, __, ___) =>
-                                                  Center(
-                                                    child: Icon(
-                                                      item.fallbackIcon,
-                                                      size: 64,
-                                                      color:
-                                                          AppTheme.accentGlow,
-                                                    ),
-                                                  ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 490),
+                            child: PageView.builder(
+                              controller: _pageController,
+                              itemCount: _slides.length,
+                              onPageChanged: (idx) =>
+                                  setState(() => _currentIndex = idx),
+                              itemBuilder: (context, idx) {
+                                final item = _slides[idx];
+                                return LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final animSize = (constraints.maxHeight * 0.36)
+                                        .clamp(90.0, 170.0);
+                                    return Center(
+                                      child: Container(
+                                        width: double.infinity,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                          vertical: 6,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                          vertical: 16,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryLight,
+                                          borderRadius: BorderRadius.circular(24),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(alpha: 0.12),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ExcludeSemantics(
+                                              child: SizedBox.square(
+                                                dimension: animSize,
+                                                child: Lottie.asset(
+                                                  item.lottieAsset,
+                                                  fit: BoxFit.contain,
+                                                  frameRate: FrameRate.composition,
+                                                  animate:
+                                                      idx == _currentIndex &&
+                                                      !reduceMotion,
+                                                  controller: reduceMotion
+                                                      ? const AlwaysStoppedAnimation<
+                                                          double
+                                                        >(0.64)
+                                                      : null,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      Center(
+                                                        child: Icon(
+                                                          item.fallbackIcon,
+                                                          size: animSize * 0.45,
+                                                          color:
+                                                              AppTheme.accentGlow,
+                                                        ),
+                                                      ),
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.accentColor.withValues(
-                                          alpha: 0.18,
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.accentColor.withValues(
+                                                  alpha: 0.18,
+                                                ),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: AppTheme.accentGlow.withValues(
+                                                    alpha: 0.4,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                item.badge,
+                                                style: const TextStyle(
+                                                  color: AppTheme.accentGlow,
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: 1.3,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              item.title,
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: ResponsiveUtils.isMobile(context)
+                                                    ? 19
+                                                    : 21,
+                                                fontWeight: FontWeight.w800,
+                                                height: 1.25,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              item.description,
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.78,
+                                                ),
+                                                fontSize: ResponsiveUtils.isMobile(context)
+                                                    ? 13
+                                                    : 14,
+                                                height: 1.45,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: AppTheme.accentGlow.withValues(
-                                            alpha: 0.4,
-                                          ),
-                                        ),
                                       ),
-                                      child: Text(
-                                        item.badge,
-                                        style: const TextStyle(
-                                          color: AppTheme.accentGlow,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 1.4,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      item.title,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w800,
-                                        height: 1.25,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    Text(
-                                      item.description,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.78,
-                                        ),
-                                        fontSize: 15,
-                                        height: 1.55,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
 
