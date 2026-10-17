@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,7 +9,6 @@ import '../../providers/app_data_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
-import '../../services/export_excel_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/expressive_logo.dart';
 import '../../widgets/interactive_tour_overlay.dart';
@@ -159,39 +157,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, Routes.login);
-    }
-  }
-
-  Future<void> _exportAllComplaintsToExcel() async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(content: Text("Generating Excel report...")),
-    );
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('complaints')
-          .orderBy('timestamp', descending: true)
-          .get();
-      if (snapshot.docs.isEmpty) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text("No complaints found to export.")),
-        );
-        return;
-      }
-      await ExportExcelService.exportToExcel(snapshot.docs);
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text("Excel report downloaded (.xlsx)"),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text("Export failed: $e"),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
     }
   }
 
@@ -772,8 +737,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                     )
-                  else
+                  else ...[
                     ...filteredComplaints.map((c) => _buildTicketCard(c)),
+                    const SizedBox(height: 12),
+                    if (appData.isLoadingMore)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                "Loading older tickets...",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (appData.hasMoreComplaints)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 6, bottom: 12),
+                          child: OutlinedButton.icon(
+                            onPressed: () => appData.loadMoreComplaints(),
+                            icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+                            label: const Text(
+                              "Load More Tickets",
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.primaryColor,
+                              side: const BorderSide(color: AppTheme.primaryColor),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (filteredComplaints.isNotEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle_outline_rounded, size: 14, color: Colors.grey.shade400),
+                              const SizedBox(width: 6),
+                              Text(
+                                "All tickets loaded • Cached locally",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade500,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ],
               ),
             ),

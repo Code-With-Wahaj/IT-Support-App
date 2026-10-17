@@ -91,7 +91,25 @@ class _ChatScreenState extends State<ChatScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (scrollController.hasClients &&
+        scrollController.position.pixels >=
+            scrollController.position.maxScrollExtent - 200) {
+      final appData = context.read<AppDataProvider>();
+      if (!appData.isLoadingMore && appData.hasMoreComplaints) {
+        appData.loadMoreComplaints();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    scrollController.removeListener(_onScroll);
     messageC.dispose();
     _messageFocus.dispose();
     scrollController.dispose();
@@ -546,8 +564,23 @@ class _ChatScreenState extends State<ChatScreen> {
                         vertical: 16,
                         horizontal: 8,
                       ),
-                      itemCount: messages.length,
+                      itemCount: messages.length + (appData.isLoadingMore ? 1 : 0),
                       itemBuilder: (context, index) {
+                        if (index == messages.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
                         final data = messages[index];
                         final isMe = data['facultyId'] == currentUid;
                         final status = (data['status'] ?? 'Pending').toString();
