@@ -1,60 +1,54 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
-/// Shared lab-management identity, matching the launcher and web icons.
+/// Clean, frosted glass logo container for Aptech IT Hub.
+/// Matches the glass style of the Aptech logo across splash and auth screens.
 class ExpressiveAppLogo extends StatelessWidget {
   final double size;
-  final bool showBadgeText;
+  final double? padding;
+  final double? borderRadius;
 
   const ExpressiveAppLogo({
     super.key,
     this.size = 64,
-    this.showBadgeText = false,
+    this.padding,
+    this.borderRadius,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(size * 0.24),
-          child: Image.asset(
-            'assets/logo.png',
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.high,
-            semanticLabel: 'Aptech IT Hub: computer labs and IT support',
-          ),
+    final p = padding ?? (size <= 40 ? 6.0 : 10.0);
+    final r = borderRadius ?? (size <= 40 ? 10.0 : 16.0);
+
+    return Container(
+      padding: EdgeInsets.all(p),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(r),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.16),
+          width: 1.2,
         ),
-        if (showBadgeText) ...[
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "APTECH IT HUB",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              Text(
-                "Lab Management & IT Support",
-                style: TextStyle(
-                  color: AppTheme.accentGlow.withValues(alpha: 0.9),
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11,
-                ),
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
-      ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(r * 0.6),
+        child: Image.asset(
+          'assets/logo.png',
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          semanticLabel: 'Aptech IT Hub Logo',
+          errorBuilder: (_, __, ___) =>
+              Icon(Icons.hub_rounded, size: size, color: Colors.white),
+        ),
+      ),
     );
   }
 }

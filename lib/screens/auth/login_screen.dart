@@ -74,19 +74,33 @@ class _LoginScreenState extends State<LoginScreen>
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.06),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white12),
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.16),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
                           ),
-                          child: Image.asset(
-                            'assets/aptech_logo.png',
-                            width: 48,
-                            height: 48,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.school, color: Colors.white),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              'assets/aptech_logo.png',
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.school, color: Colors.white),
+                            ),
                           ),
                         ),
-                        const ExpressiveAppLogo(size: 50, showBadgeText: true),
+                        const ExpressiveAppLogo(size: 48),
                       ],
                     ),
                   ),

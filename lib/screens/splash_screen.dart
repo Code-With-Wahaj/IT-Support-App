@@ -79,29 +79,8 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const ExpressiveAppLogo(size: 110),
-                    SizedBox(height: 3.5.h),
-                    const Text(
-                      "APTECH IT HUB",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 3.0,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Lab Management • Complaints • IT Support",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 13,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
+                    const ExpressiveAppLogo(size: 110, padding: 18, borderRadius: 28),
+                    SizedBox(height: 5.h),
                     const SizedBox(
                       width: 26,
                       height: 26,

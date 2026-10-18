@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/lab_model.dart';
-import '../../models/pc_status_model.dart';
 import '../../providers/lab_provider.dart';
 import '../../providers/app_data_provider.dart';
 import 'add_edit_labs_screens.dart';
-import 'lab_3d_screen.dart';
-import '../../services/export_excel_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 
@@ -30,10 +26,6 @@ class _LabListScreenState extends State<LabListScreen> {
     final isAdmin = appData.isAdmin;
     final associatedLabs = appData.associatedLabs;
 
-    final bool isMobileApp = !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS);
-
     final roleLabs = isAdmin
         ? provider.labs
         : provider.labs.where((lab) {
@@ -54,34 +46,8 @@ class _LabListScreenState extends State<LabListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Digital Twin Labs'),
+        title: const Text('Lab Management'),
         actions: [
-          if (isAdmin && !isMobileApp)
-            IconButton(
-              icon: const Icon(Icons.download_rounded),
-              tooltip: 'Export All Labs (.xlsx)',
-              onPressed: () async {
-                if (roleLabs.isEmpty) return;
-                final Map<String, List<PcStatusModel>> labPcMap = {};
-                for (final lab in roleLabs) {
-                  final pcsMap =
-                      await provider.streamLabPcStatuses(lab.id).first;
-                  labPcMap[lab.id] = pcsMap.values.toList();
-                }
-                await ExportExcelService.exportAllLabs(
-                  labs: roleLabs,
-                  labPcMap: labPcMap,
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All labs exported to Excel'),
-                      backgroundColor: AppTheme.successColor,
-                    ),
-                  );
-                }
-              },
-            ),
           if (isAdmin)
             IconButton(
               icon: const Icon(Icons.add_box_rounded),
@@ -224,10 +190,14 @@ class _LabListScreenState extends State<LabListScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => Lab3DViewScreen(lab: lab)),
-          );
+          if (isAdmin) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => AddEditLabScreen(lab: lab)),
+            );
+          } else {
+            _showLabDetailsDialog(context, lab);
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -424,6 +394,63 @@ class _LabListScreenState extends State<LabListScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  void _showLabDetailsDialog(BuildContext context, LabModel lab) {
+    final totalWorkstations = (lab.rows * lab.columns) + 1;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.meeting_room_rounded, color: AppTheme.primaryColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(lab.name, style: const TextStyle(fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.person_outline_rounded, color: AppTheme.primaryColor),
+              title: const Text("Assigned Technician"),
+              subtitle: Text(lab.assignedTo, style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.computer_rounded, color: AppTheme.accentColor),
+              title: const Text("Total Workstations"),
+              subtitle: Text("$totalWorkstations PCs (${lab.rows}x${lab.columns} + Instructor)"),
+            ),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.grid_view_rounded, color: Colors.teal),
+              title: const Text("Layout Configuration"),
+              subtitle: Text(lab.layoutType.toUpperCase()),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
     );
   }
 }

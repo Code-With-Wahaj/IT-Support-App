@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../models/lab_model.dart';
-import '../models/pc_status_model.dart';
 
 class LabProvider extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -59,16 +58,6 @@ class LabProvider extends ChangeNotifier {
 
     final labRef = _db.collection('labs').doc(lab.id);
     await labRef.set(labWithTech.toMap());
-
-    final batch = _db.batch();
-    batch.set(labRef.collection('pcs').doc('IP'), PcStatusModel(pcId: 'IP').toMap());
-    for (int r = 0; r < lab.rows; r++) {
-      for (int c = 0; c < lab.columns; c++) {
-        final id = 'PC-${r + 1}-${c + 1}';
-        batch.set(labRef.collection('pcs').doc(id), PcStatusModel(pcId: id).toMap());
-      }
-    }
-    await batch.commit();
   }
 
   Future<void> updateLabAndSyncPcs(LabModel lab) async {
@@ -77,54 +66,11 @@ class LabProvider extends ChangeNotifier {
     final labWithTech = lab.copyWith(assignedTo: assignedTechnician);
 
     await labRef.update(labWithTech.toMap());
-
-    final existing = await labRef.collection('pcs').get();
-    final existingIds = existing.docs.map((d) => d.id).toSet();
-
-    final batch = _db.batch();
-    for (int r = 0; r < lab.rows; r++) {
-      for (int c = 0; c < lab.columns; c++) {
-        final id = 'PC-${r + 1}-${c + 1}';
-        if (!existingIds.contains(id)) {
-          batch.set(labRef.collection('pcs').doc(id), PcStatusModel(pcId: id).toMap());
-        }
-        existingIds.remove(id);
-      }
-    }
-
-    existingIds.remove('IP');
-    for (final id in existingIds) {
-      batch.delete(labRef.collection('pcs').doc(id));
-    }
-
-    await batch.commit();
   }
 
   Future<void> deleteLab(String id) async {
     final labRef = _db.collection('labs').doc(id);
-    final pcs = await labRef.collection('pcs').get();
-
-    final batch = _db.batch();
-    for (final p in pcs.docs) {
-      batch.delete(p.reference);
-    }
-    batch.delete(labRef);
-    await batch.commit();
-  }
-
-  Future<void> updatePcStatus(String labId, String pcId, PcStatusModel s) async {
-    await _db
-        .collection('labs')
-        .doc(labId)
-        .collection('pcs')
-        .doc(pcId)
-        .set(s.toMap(), SetOptions(merge: true));
-  }
-
-  Stream<Map<String, PcStatusModel>> streamLabPcStatuses(String labId) {
-    return _db.collection('labs').doc(labId).collection('pcs').snapshots().map(
-          (s) => {for (final d in s.docs) d.id: PcStatusModel.fromMap(d.id, d.data())},
-        );
+    await labRef.delete();
   }
 
   String _findTechnicianFromCache(String labName) {
