@@ -280,11 +280,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.16),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
-      child: Image.asset(asset, width: size, height: size),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(asset, width: size, height: size, fit: BoxFit.contain),
+      ),
     );
   }
 }

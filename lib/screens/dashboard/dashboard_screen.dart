@@ -227,10 +227,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       TourStep(
         targetKey: _quickActionsKey,
-        title: "Digital Twin Labs & Management",
+        title: "Lab Management & Workspaces",
         description:
-            "Access interactive 3D Lab Workstations, user management, and advanced filtered analytics.",
-        icon: Icons.computer_rounded,
+            "Access campus lab assignments, user management, and advanced analytics.",
+        icon: Icons.meeting_room_rounded,
       ),
       TourStep(
         targetKey: _filterChipsKey,
@@ -501,10 +501,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 SizedBox(
                                   width: itemW,
                                   child: _buildModuleCard(
-                                    title: "Digital Twin Labs",
+                                    title: "Lab Management",
                                     subtitle:
-                                        "Interactive 3D PC matrix & hardware health",
-                                    icon: Icons.developer_board_rounded,
+                                        "Lab allocations & technician assignments",
+                                    icon: Icons.meeting_room_rounded,
                                     color: AppTheme.accentColor,
                                     onTap: () => Navigator.pushNamed(
                                       context,
