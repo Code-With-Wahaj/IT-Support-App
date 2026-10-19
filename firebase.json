@@ -3,18 +3,18 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "aptech-it-support",
-          "appId": "1:416774545611:android:bf82fa07363954db997b4e",
+          "projectId": "aptech-network-hub",
+          "appId": "1:143525196824:android:e87861657749bcc9fdff6d",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "aptech-it-support",
+          "projectId": "aptech-network-hub",
           "configurations": {
-            "android": "1:416774545611:android:bf82fa07363954db997b4e",
-            "web": "1:416774545611:web:0d6fd58723dc987b997b4e",
-            "windows": "1:416774545611:web:63c889c71ca629f7997b4e"
+            "android": "1:143525196824:android:e87861657749bcc9fdff6d",
+            "web": "1:143525196824:web:7e0bffa063097dbcfdff6d",
+            "windows": "1:143525196824:web:6cdc5c222e76a8defdff6d"
           }
         }
       }
