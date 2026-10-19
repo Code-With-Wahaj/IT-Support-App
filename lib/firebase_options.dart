@@ -47,31 +47,30 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCZpD7tWO02MEJv5VMphU82aC3dt_RUCjs',
-    appId: '1:416774545611:web:0d6fd58723dc987b997b4e',
-    messagingSenderId: '416774545611',
-    projectId: 'aptech-it-support',
-    authDomain: 'aptech-it-support.firebaseapp.com',
-    storageBucket: 'aptech-it-support.firebasestorage.app',
-    measurementId: 'G-EGMFY8YY7F',
+    apiKey: 'AIzaSyDbl8zlNcmMIONle-SoeHocBIoiaXggFW4',
+    appId: '1:143525196824:web:7e0bffa063097dbcfdff6d',
+    messagingSenderId: '143525196824',
+    projectId: 'aptech-network-hub',
+    authDomain: 'aptech-network-hub.firebaseapp.com',
+    storageBucket: 'aptech-network-hub.firebasestorage.app',
+    measurementId: 'G-91KP3GKP85',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAm62nhKk9p4SjiGZ04VcmktnRXgIorKxg',
-    appId: '1:416774545611:android:bf82fa07363954db997b4e',
-    messagingSenderId: '416774545611',
-    projectId: 'aptech-it-support',
-    storageBucket: 'aptech-it-support.firebasestorage.app',
+    apiKey: 'AIzaSyBPtulyteR0GSE8KN4PxiE1Fl7slYwdoNM',
+    appId: '1:143525196824:android:e87861657749bcc9fdff6d',
+    messagingSenderId: '143525196824',
+    projectId: 'aptech-network-hub',
+    storageBucket: 'aptech-network-hub.firebasestorage.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCZpD7tWO02MEJv5VMphU82aC3dt_RUCjs',
-    appId: '1:416774545611:web:63c889c71ca629f7997b4e',
-    messagingSenderId: '416774545611',
-    projectId: 'aptech-it-support',
-    authDomain: 'aptech-it-support.firebaseapp.com',
-    storageBucket: 'aptech-it-support.firebasestorage.app',
-    measurementId: 'G-HCM8QLPER2',
+    apiKey: 'AIzaSyDbl8zlNcmMIONle-SoeHocBIoiaXggFW4',
+    appId: '1:143525196824:web:6cdc5c222e76a8defdff6d',
+    messagingSenderId: '143525196824',
+    projectId: 'aptech-network-hub',
+    authDomain: 'aptech-network-hub.firebaseapp.com',
+    storageBucket: 'aptech-network-hub.firebasestorage.app',
+    measurementId: 'G-Z2P9W35JMN',
   );
-
 }
