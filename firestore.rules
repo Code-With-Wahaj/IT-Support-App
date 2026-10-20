@@ -21,6 +21,7 @@ service cloud.firestore {
       return isAuthenticated() && (
         request.auth.token.email == 'wahajaamir2@gmail.com' ||
         request.auth.token.email == 'cah-sf@aptech-education.com.pk' ||
+        request.auth.token.email == 'academicsfc@gmail.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          (getUserData().isSuperAdmin == true ||
           getUserData().role == 'Super Admin' ||

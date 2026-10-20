@@ -21,20 +21,27 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
 
       if (user != null) {
-        try {
-          final doc = await _authService.getUserDoc(user!.uid);
-          final data = doc.data() as Map<String, dynamic>? ?? {};
-          final isApproved = data['isApproved'] ?? false;
+        final lowerEmail = (user!.email ?? '').toLowerCase().trim();
+        final isSuperAdminEmail = lowerEmail == 'wahajaamir2@gmail.com' ||
+            lowerEmail == 'cah-sf@aptech-education.com.pk' ||
+            lowerEmail == 'academicsfc@gmail.com';
 
-          if (!isApproved) {
-            await _authService.logout();
-            user = null;
-            notifyListeners();
+        if (!isSuperAdminEmail) {
+          try {
+            final doc = await _authService.getUserDoc(user!.uid);
+            if (doc.exists) {
+              final data = doc.data() as Map<String, dynamic>? ?? {};
+              final isApproved = data['isApproved'] ?? false;
+
+              if (!isApproved) {
+                await _authService.logout();
+                user = null;
+                notifyListeners();
+              }
+            }
+          } catch (e) {
+            debugPrint('Non-fatal authStateChanges check error: $e');
           }
-        } catch (_) {
-          await _authService.logout();
-          user = null;
-          notifyListeners();
         }
       }
     });
@@ -55,25 +62,29 @@ class AuthProvider extends ChangeNotifier {
       user = _authService.currentUser;
 
       if (user != null) {
-        try {
+        final lowerEmail = (user!.email ?? '').toLowerCase().trim();
+        final isSuperAdminEmail = lowerEmail == 'wahajaamir2@gmail.com' ||
+            lowerEmail == 'cah-sf@aptech-education.com.pk' ||
+            lowerEmail == 'academicsfc@gmail.com';
 
-          final doc = await _authService.getUserDoc(user!.uid);
-          final data = doc.data() as Map<String, dynamic>? ?? {};
-          final isApproved = data['isApproved'] ?? false;
+        if (!isSuperAdminEmail) {
+          try {
+            final doc = await _authService.getUserDoc(user!.uid);
+            if (doc.exists) {
+              final data = doc.data() as Map<String, dynamic>? ?? {};
+              final isApproved = data['isApproved'] ?? false;
 
-          if (!isApproved) {
-            await _authService.logout();
-            user = null;
-            loading = false;
-            notifyListeners();
-            return "Account registered successfully.\nWaiting for admin approval.";
+              if (!isApproved) {
+                await _authService.logout();
+                user = null;
+                loading = false;
+                notifyListeners();
+                return "Account registered successfully.\nWaiting for admin approval.";
+              }
+            }
+          } catch (e) {
+            debugPrint('Non-fatal getUserDoc verification warning: $e');
           }
-        } catch (_) {
-          await _authService.logout();
-          user = null;
-          loading = false;
-          notifyListeners();
-          return "Failed to verify account approval.";
         }
       }
     }
@@ -100,6 +111,8 @@ class AuthProvider extends ChangeNotifier {
     loading = true;
     notifyListeners();
 
+    final wasLoggedIn = _authService.currentUser != null;
+
     final result = await _authService.signUp(
       name: name,
       email: email,
@@ -109,9 +122,11 @@ class AuthProvider extends ChangeNotifier {
       isApproved: isApproved,
     );
 
-    // 🔥 ALWAYS LOGOUT AFTER SIGNUP
-    await _authService.logout();
-    user = null;
+    // Only logout if user was performing self sign-up (prevents kicking out admin)
+    if (!wasLoggedIn) {
+      await _authService.logout();
+      user = null;
+    }
 
     loading = false;
     notifyListeners();

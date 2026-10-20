@@ -225,7 +225,8 @@ class _EditUserDialogState extends State<EditUserDialog> {
     final authProv = Provider.of<AuthProvider>(context, listen: false);
     final currentUserEmail = (authProv.user?.email ?? '').toLowerCase().trim();
     final isSuperAdmin = currentUserEmail == 'wahajaamir2@gmail.com' ||
-        currentUserEmail == 'cah-sf@aptech-education.com.pk';
+        currentUserEmail == 'cah-sf@aptech-education.com.pk' ||
+        currentUserEmail == 'academicsfc@gmail.com';
 
     final List<String> availableRoles = isSuperAdmin
         ? ["Faculty", "IT Technician", "Admin", "Super Admin"]

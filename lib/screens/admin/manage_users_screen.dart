@@ -68,6 +68,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
               final isDocSA = data['isSuperAdmin'] == true;
               if (docEmail == 'wahajaamir2@gmail.com' ||
                   docEmail == 'cah-sf@aptech-education.com.pk' ||
+                  docEmail == 'academicsfc@gmail.com' ||
                   docRole == 'super admin' ||
                   docRole == 'superadmin' ||
                   isDocSA) {

@@ -13,38 +13,50 @@ class LabProvider extends ChangeNotifier {
     if (_listening) return;
     _listening = true;
 
-    // Listen to technicians changes separately and cache in memory
+    // Listen to technicians changes separately if permitted (Admin), guarded against permission denial
     _db
         .collection('users')
         .where('role', isEqualTo: 'IT Technician')
         .snapshots()
-        .listen((techSnap) {
-      _cachedTechMap = {
-        for (var doc in techSnap.docs)
-          (doc.data()['name'] ?? 'Unknown').toString():
-              List<String>.from(doc.data()['associatedLabs'] ?? [])
-      };
-      _recomputeLabAssignments();
-    });
+        .listen(
+      (techSnap) {
+        _cachedTechMap = {
+          for (var doc in techSnap.docs)
+            (doc.data()['name'] ?? 'Unknown').toString():
+                List<String>.from(doc.data()['associatedLabs'] ?? [])
+        };
+        _recomputeLabAssignments();
+      },
+      onError: (e) {
+        debugPrint('Tech map subscription handled non-fatally: $e');
+      },
+    );
 
-    _db.collection('labs').snapshots().listen((s) {
-      labs = s.docs.map((d) => LabModel.fromMap(d.id, d.data())).toList();
-      _recomputeLabAssignments();
-    });
+    _db.collection('labs').snapshots().listen(
+      (s) {
+        labs = s.docs.map((d) => LabModel.fromMap(d.id, d.data())).toList();
+        _recomputeLabAssignments();
+      },
+      onError: (e) {
+        debugPrint('Labs stream handled non-fatally: $e');
+      },
+    );
   }
 
   void _recomputeLabAssignments() {
-    labs = labs.map((lab) {
-      final labNameNormalized = lab.name.trim().toLowerCase();
-      for (final entry in _cachedTechMap.entries) {
-        final assignedLabsNormalized =
-            entry.value.map((e) => e.toString().trim().toLowerCase());
-        if (assignedLabsNormalized.contains(labNameNormalized)) {
-          return lab.copyWith(assignedTo: entry.key);
+    if (_cachedTechMap.isNotEmpty) {
+      labs = labs.map((lab) {
+        final labNameNormalized = lab.name.trim().toLowerCase();
+        for (final entry in _cachedTechMap.entries) {
+          final assignedLabsNormalized =
+              entry.value.map((e) => e.toString().trim().toLowerCase());
+          if (assignedLabsNormalized.contains(labNameNormalized)) {
+            return lab.copyWith(assignedTo: entry.key);
+          }
         }
-      }
-      return lab.copyWith(assignedTo: 'Unassigned');
-    }).toList();
+        return lab;
+      }).toList();
+    }
     notifyListeners();
   }
 

@@ -82,48 +82,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where('userId', isEqualTo: user.uid)
         .where('isRead', isEqualTo: false)
         .snapshots()
-        .listen((snapshot) {
-      for (var change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final data = change.doc.data() ?? {};
-          final title = (data['title'] ?? 'Notification').toString();
-          final message = (data['message'] ?? '').toString();
-          final complaintId = (data['complaintId'] ?? '').toString();
-          final createdAt = data['createdAt'] as Timestamp?;
+        .listen(
+      (snapshot) {
+        for (var change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            final data = change.doc.data() ?? {};
+            final title = (data['title'] ?? 'Notification').toString();
+            final message = (data['message'] ?? '').toString();
+            final complaintId = (data['complaintId'] ?? '').toString();
+            final createdAt = data['createdAt'] as Timestamp?;
 
-          if (createdAt != null &&
-              createdAt.toDate().isAfter(
-                _screenOpenTime.subtract(const Duration(seconds: 5)),
-              )) {
-            NotificationService().showPushNotification(title, message);
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text("$title: $message"),
-                  action: SnackBarAction(
-                    label: "VIEW",
-                    textColor: AppTheme.accentGlow,
-                    onPressed: () {
-                      if (complaintId.isNotEmpty) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ComplaintDetailScreen(complaintId: complaintId),
-                          ),
-                        );
-                      } else {
-                        Navigator.pushNamed(context, Routes.notifications);
-                      }
-                    },
+            if (createdAt != null &&
+                createdAt.toDate().isAfter(
+                  _screenOpenTime.subtract(const Duration(seconds: 5)),
+                )) {
+              NotificationService().showPushNotification(title, message);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("$title: $message"),
+                    action: SnackBarAction(
+                      label: "VIEW",
+                      textColor: AppTheme.accentGlow,
+                      onPressed: () {
+                        if (complaintId.isNotEmpty) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ComplaintDetailScreen(complaintId: complaintId),
+                            ),
+                          );
+                        } else {
+                          Navigator.pushNamed(context, Routes.notifications);
+                        }
+                      },
+                    ),
                   ),
-                ),
-              );
+                );
+              }
             }
           }
         }
-      }
-    });
+      },
+      onError: (e) {
+        debugPrint('Notification error handled: $e');
+      },
+    );
   }
 
   @override
@@ -153,10 +158,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     if (confirm ?? false) {
-      context.read<AppDataProvider>().disposeStreams();
+      if (!mounted) return;
+      final appData = context.read<AppDataProvider>();
+      final nav = Navigator.of(context);
+      await appData.clearSession();
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, Routes.login);
+      nav.pushReplacementNamed(Routes.login);
     }
   }
 

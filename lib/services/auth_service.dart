@@ -7,7 +7,8 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Signup
-  /// if isApproved == true, user will be immediately approved (used by admin)
+  /// if an admin is currently logged in, creates user in secondary app
+  /// to prevent hijacking the admin's active session and triggering security rule rejections.
   Future<String?> signUp({
     required String name,
     required String email,
@@ -16,14 +17,30 @@ class AuthService {
     List<String>? associatedLabs,
     bool isApproved = false, // <-- default false for normal signups
   }) async {
+    FirebaseApp? tempApp;
     try {
-      UserCredential cred = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      String uid;
+      if (_auth.currentUser != null) {
+        tempApp = await Firebase.initializeApp(
+          name: 'signup_${DateTime.now().microsecondsSinceEpoch}',
+          options: Firebase.app().options,
+        );
+        final tempAuth = FirebaseAuth.instanceFor(app: tempApp);
+        final cred = await tempAuth.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        uid = cred.user!.uid;
+      } else {
+        final cred = await _auth.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        uid = cred.user!.uid;
+      }
 
       final data = {
-        "uid": cred.user!.uid,
+        "uid": uid,
         "name": name,
         "email": email,
         "role": role,
@@ -37,11 +54,17 @@ class AuthService {
         data["associatedLabs"] = associatedLabs;
       }
 
-      await _firestore.collection("users").doc(cred.user!.uid).set(data);
+      await _firestore.collection("users").doc(uid).set(data);
 
       return null;
     } catch (e) {
       return e.toString();
+    } finally {
+      if (tempApp != null) {
+        try {
+          await tempApp.delete();
+        } catch (_) {}
+      }
     }
   }
 
