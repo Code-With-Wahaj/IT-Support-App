@@ -61,7 +61,8 @@ class AppDataProvider extends ChangeNotifier {
         r == 'superadmin' ||
         _currentUserProfile?['isSuperAdmin'] == true ||
         email == 'wahajaamir2@gmail.com' ||
-        email == 'cah-sf@aptech-education.com.pk';
+        email == 'cah-sf@aptech-education.com.pk' ||
+        email == 'academicsfc@gmail.com';
   }
 
   bool get isAdmin => userRole.toLowerCase().trim() == 'admin' || isSuperAdmin;
@@ -100,6 +101,12 @@ class AppDataProvider extends ChangeNotifier {
 
   /// 2. Attach single shared Firestore listener using DocumentChanges delta updates (limited to 10 newest)
   Future<void> bindSessionStreams(String uid) async {
+    // If the cached profile is from another user, clear it immediately
+    if (_currentUserProfile != null && _currentUserProfile!['uid'] != uid) {
+      _currentUserProfile = null;
+      notifyListeners();
+    }
+
     // Load user profile once and cache locally
     try {
       final doc = await _db.collection('users').doc(uid).get();
@@ -124,44 +131,55 @@ class AppDataProvider extends ChangeNotifier {
         .orderBy('timestamp', descending: true)
         .limit(_pageSize)
         .snapshots(includeMetadataChanges: false)
-        .listen((snapshot) async {
-      bool changed = false;
+        .listen(
+      (snapshot) async {
+        bool changed = false;
 
-      if (snapshot.docs.isNotEmpty && _lastVisibleDoc == null) {
-        _lastVisibleDoc = snapshot.docs.last;
-      }
+        if (snapshot.docs.isNotEmpty && _lastVisibleDoc == null) {
+          _lastVisibleDoc = snapshot.docs.last;
+        }
 
-      for (final change in snapshot.docChanges) {
-        final docId = change.doc.id;
-        // Don't remove documents when they naturally fall outside the limit(10) window
-        if (change.type != DocumentChangeType.removed) {
-          final data = change.doc.data();
-          if (data != null) {
-            final sanitized = _sanitizeMap(data);
-            sanitized['complaintId'] = docId;
-            _complaintsMap[docId] = sanitized;
-            changed = true;
+        for (final change in snapshot.docChanges) {
+          final docId = change.doc.id;
+          // Don't remove documents when they naturally fall outside the limit(10) window
+          if (change.type != DocumentChangeType.removed) {
+            final data = change.doc.data();
+            if (data != null) {
+              final sanitized = _sanitizeMap(data);
+              sanitized['complaintId'] = docId;
+              _complaintsMap[docId] = sanitized;
+              changed = true;
+            }
           }
         }
-      }
 
-      if (changed) {
-        notifyListeners();
-        _persistComplaintsToDisk();
-      }
-    });
+        if (changed) {
+          notifyListeners();
+          _persistComplaintsToDisk();
+        }
+      },
+      onError: (e) {
+        debugPrint('Complaints stream non-fatal error: $e');
+      },
+    );
 
     // If Admin, maintain a lightweight listener for user counts
     if (isAdmin) {
       await _usersSummarySubscription?.cancel();
-      _usersSummarySubscription = _db.collection('users').snapshots().listen((snap) {
-        totalUsersCount = snap.docs.length;
-        waitingApprovalCount = snap.docs.where((d) {
-          final data = d.data();
-          return data.containsKey('isApproved') && data['isApproved'] == false;
-        }).length;
-        notifyListeners();
-      });
+      _usersSummarySubscription = _db.collection('users').snapshots().listen(
+        (snap) {
+          totalUsersCount = snap.docs.length;
+          waitingApprovalCount = snap.docs.where((d) {
+            final data = d.data();
+            return data.containsKey('isApproved') && data['isApproved'] == false;
+          }).length;
+          notifyListeners();
+        },
+        onError: (e) {
+          debugPrint('Users summary stream non-fatal error: $e');
+          _usersSummarySubscription?.cancel();
+        },
+      );
     }
   }
 
@@ -253,5 +271,24 @@ class AppDataProvider extends ChangeNotifier {
     _usersSummarySubscription?.cancel();
     _usersSummarySubscription = null;
     _lastVisibleDoc = null;
+    _currentUserProfile = null;
+    notifyListeners();
+  }
+
+  /// Completely wipe in-memory state and persistent profile cache on logout
+  Future<void> clearSession() async {
+    disposeStreams();
+    _complaintsMap.clear();
+    totalUsersCount = 0;
+    waitingApprovalCount = 0;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userProfileCacheKey);
+      await prefs.remove(_cacheKey);
+    } catch (e) {
+      debugPrint('Error clearing cache: $e');
+    }
+    notifyListeners();
   }
 }
+

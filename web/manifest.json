@@ -1,11 +1,11 @@
 {
-    "name": "it_issues_temp",
-    "short_name": "it_issues_temp",
+    "name": "Aptech Network Hub",
+    "short_name": "Aptech Hub",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#hexcode",
-    "theme_color": "#hexcode",
-    "description": "A new Flutter project.",
+    "background_color": "#0F172A",
+    "theme_color": "#0F172A",
+    "description": "Aptech IT Support and Complaint Management System",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

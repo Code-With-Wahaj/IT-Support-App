@@ -35,7 +35,9 @@ class _AdminAddUserScreenState extends State<AdminAddUserScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final email = (user.email ?? '').toLowerCase().trim();
-    if (email == 'wahajaamir2@gmail.com' || email == 'cah-sf@aptech-education.com.pk') {
+    if (email == 'wahajaamir2@gmail.com' ||
+        email == 'cah-sf@aptech-education.com.pk' ||
+        email == 'academicsfc@gmail.com') {
       if (mounted) {
         setState(() {
           isSuperAdmin = true;
@@ -50,7 +52,12 @@ class _AdminAddUserScreenState extends State<AdminAddUserScreen> {
       final isSA = doc.data()?['isSuperAdmin'] == true;
       if (mounted) {
         setState(() {
-          isSuperAdmin = r == 'super admin' || r == 'superadmin' || isSA || email == 'wahajaamir2@gmail.com' || email == 'cah-sf@aptech-education.com.pk';
+          isSuperAdmin = r == 'super admin' ||
+              r == 'superadmin' ||
+              isSA ||
+              email == 'wahajaamir2@gmail.com' ||
+              email == 'cah-sf@aptech-education.com.pk' ||
+              email == 'academicsfc@gmail.com';
           if (isSuperAdmin) {
             roles = ["Faculty", "IT Technician", "Admin", "Super Admin"];
           }
