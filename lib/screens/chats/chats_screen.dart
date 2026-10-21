@@ -131,11 +131,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty && (_selectedLab == null || _selectedIssue == null)) return;
 
     String finalMsg = text;
-    if (finalMsg.isEmpty && _selectedLab != null && _selectedIssue != null) {
-      finalMsg = "[$_selectedLab] $_selectedIssue";
-    } else if (_selectedLab != null &&
-        !finalMsg.toLowerCase().contains(_selectedLab!.toLowerCase())) {
-      finalMsg = "[$_selectedLab] $finalMsg";
+    if (finalMsg.isEmpty && _selectedIssue != null) {
+      finalMsg = _selectedIssue!;
     }
 
     messageC.clear();
@@ -164,7 +161,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final lab = _selectedLab!;
     final issue = _selectedIssue!;
     final category = _selectedCategory ?? "Other";
-    final text = "[$lab] $issue";
+    final text = issue;
 
     setState(() {
       _selectedLab = null;
@@ -410,12 +407,6 @@ class _ChatScreenState extends State<ChatScreen> {
                               _selectedIssue = null;
                               _selectedCategory = "Other";
                             });
-                            if (_selectedLab != null) {
-                              messageC.text = "[$_selectedLab] ";
-                              messageC.selection = TextSelection.fromPosition(
-                                TextPosition(offset: messageC.text.length),
-                              );
-                            }
                             _messageFocus.requestFocus();
                           } else {
                             setState(() {
@@ -712,7 +703,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    (data['message'] ?? '').toString(),
+                                    (data['message'] ?? '')
+                                        .toString()
+                                        .replaceFirst(RegExp(r'^\[.*?\]\s*'), ''),
                                     style: TextStyle(
                                       fontSize: 14.5,
                                       height: 1.4,

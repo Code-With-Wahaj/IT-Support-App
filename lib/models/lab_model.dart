@@ -9,6 +9,8 @@ class LabModel {
   final String assignedTo;
   final String assignedTechnicianId;
 
+  final List<String> disabledPcs;
+
   LabModel({
     required this.id,
     required this.name,
@@ -17,6 +19,7 @@ class LabModel {
     required this.layoutType,
     this.assignedTo = 'Unknown', // default
     this.assignedTechnicianId = '',
+    this.disabledPcs = const [],
   });
 
   /// 🔥 Firestore → Model
@@ -26,9 +29,10 @@ class LabModel {
       name: map['name'] ?? '',
       rows: map['rows'] is int ? map['rows'] : int.tryParse('${map['rows']}') ?? 4,
       columns: map['columns'] is int ? map['columns'] : int.tryParse('${map['columns']}') ?? 5,
-      layoutType: map['layoutType'] ?? 'custom theater',
+      layoutType: map['layoutType'] ?? 'theater',
       assignedTo: map['assignedTo'] ?? 'Unknown',
       assignedTechnicianId: map['assignedTechnicianId'] ?? '',
+      disabledPcs: List<String>.from(map['disabledPcs'] ?? map['inactivePcs'] ?? []),
     );
   }
 
@@ -41,6 +45,7 @@ class LabModel {
       'layoutType': layoutType,
       'assignedTo': assignedTo,
       'assignedTechnicianId': assignedTechnicianId,
+      'disabledPcs': disabledPcs,
     };
   }
 
@@ -53,6 +58,7 @@ class LabModel {
     String? layoutType,
     String? assignedTo,
     String? assignedTechnicianId,
+    List<String>? disabledPcs,
   }) {
     return LabModel(
       id: id ?? this.id,
@@ -62,6 +68,7 @@ class LabModel {
       layoutType: layoutType ?? this.layoutType,
       assignedTo: assignedTo ?? this.assignedTo,
       assignedTechnicianId: assignedTechnicianId ?? this.assignedTechnicianId,
+      disabledPcs: disabledPcs ?? this.disabledPcs,
     );
   }
 }

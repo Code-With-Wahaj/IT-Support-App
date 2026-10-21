@@ -44,15 +44,33 @@ class NotificationService {
     if (userId.isEmpty) {
       return Stream.value([]);
     }
+    // Single-field query avoids missing composite index exceptions that drop stream items
     return _notifications
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map((d) {
-              final data = d.data() as Map<String, dynamic>;
-              data['id'] = d.id;
-              return data;
-            }).toList());
+        .map((snap) {
+          final list = snap.docs.map((d) {
+            final data = d.data() as Map<String, dynamic>;
+            data['id'] = d.id;
+            return data;
+          }).toList();
+
+          list.sort((a, b) {
+            int msA = 0;
+            int msB = 0;
+            final tA = a['createdAt'];
+            final tB = b['createdAt'];
+            if (tA is Timestamp) msA = tA.millisecondsSinceEpoch;
+            if (tA is int) msA = tA;
+            if (tB is Timestamp) msB = tB.millisecondsSinceEpoch;
+            if (tB is int) msB = tB;
+            if (msA == 0 && a['timestampMs'] is int) msA = a['timestampMs'];
+            if (msB == 0 && b['timestampMs'] is int) msB = b['timestampMs'];
+            return msB.compareTo(msA);
+          });
+
+          return list;
+        });
   }
 
   /// Real-time stream of unread notification count
@@ -128,24 +146,25 @@ class NotificationService {
   }) async {
     try {
       final usersCol = FirebaseFirestore.instance.collection('users');
-      QuerySnapshot userSnapshot;
-
+      final allUsersSnap = await usersCol.get();
       final normalizedAudience = targetAudience.trim().toLowerCase();
-      if (normalizedAudience == 'faculty') {
-        userSnapshot = await usersCol.where('role', isEqualTo: 'Faculty').get();
-      } else if (normalizedAudience == 'it') {
-        userSnapshot =
-            await usersCol.where('role', isEqualTo: 'IT Technician').get();
-      } else {
-        // 'everyone'
-        userSnapshot = await usersCol.get();
-      }
 
-      final docs = userSnapshot.docs;
+      final docs = allUsersSnap.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final role = (data['role'] ?? '').toString().toLowerCase().trim();
+        if (normalizedAudience == 'faculty') {
+          return role == 'faculty';
+        } else if (normalizedAudience == 'it') {
+          return role == 'it technician' || role.contains('technician');
+        }
+        return true; // everyone
+      }).toList();
+
       if (docs.isEmpty) return 0;
 
       final batch = FirebaseFirestore.instance.batch();
       int count = 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
 
       for (var userDoc in docs) {
         final targetUid = userDoc.id;
@@ -160,6 +179,7 @@ class NotificationService {
           'senderName': senderName ?? 'IT Support',
           'targetAudience': targetAudience,
           'isRead': false,
+          'timestampMs': nowMs,
           'createdAt': FieldValue.serverTimestamp(),
         });
         count++;

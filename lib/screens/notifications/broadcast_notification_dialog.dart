@@ -189,9 +189,9 @@ class _BroadcastNotificationDialogState
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _audienceChip('everyone', '👥 Everyone (All Users)', Icons.groups_rounded),
-                  _audienceChip('faculty', '👨‍🏫 Faculty Only', Icons.school_rounded),
-                  _audienceChip('it', '🔧 IT Technicians Only', Icons.build_circle_rounded),
+                  _audienceChip('everyone', '👥 Everyone (All Users)'),
+                  _audienceChip('faculty', '👨‍🏫 Faculty Only'),
+                  _audienceChip('it', '🔧 IT Technicians Only'),
                 ],
               ),
 
@@ -329,12 +329,12 @@ class _BroadcastNotificationDialogState
     );
   }
 
-  Widget _audienceChip(String value, String label, IconData icon) {
+  Widget _audienceChip(String value, String label) {
     final selected = _targetAudience == value;
     return ChoiceChip(
+      showCheckmark: false,
       selected: selected,
       label: Text(label),
-      avatar: Icon(icon, size: 16, color: selected ? Colors.white : AppTheme.textSecondary),
       selectedColor: AppTheme.primaryColor,
       labelStyle: TextStyle(
         color: selected ? Colors.white : AppTheme.textPrimary,

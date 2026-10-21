@@ -134,6 +134,39 @@ class _NotificationPanelScreenState extends State<NotificationPanelScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
 
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(4.w),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline_rounded,
+                                  color: AppTheme.errorColor, size: 40.sp),
+                              SizedBox(height: 2.h),
+                              Text(
+                                "Unable to load notifications",
+                                style: TextStyle(
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              SizedBox(height: 1.h),
+                              Text(
+                                "${snapshot.error}",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
                     final notifications = snapshot.data ?? [];
 
                     if (notifications.isEmpty) {
@@ -196,8 +229,9 @@ class _NotificationPanelScreenState extends State<NotificationPanelScreen> {
                         final lab = notif['lab'] ?? '';
                         final complaintId = notif['complaintId'] ?? '';
                         final type = notif['type'] ?? 'info';
+                        final priority = (notif['priority'] ?? 'normal').toString().toLowerCase().trim();
                         final timeStr =
-                            _formatRelativeTime(notif['createdAt']);
+                            _formatRelativeTime(notif['createdAt'] ?? notif['timestampMs']);
 
                         Color iconColor = AppTheme.accentColor;
                         IconData iconData = Icons.notifications;
@@ -208,23 +242,55 @@ class _NotificationPanelScreenState extends State<NotificationPanelScreen> {
                         } else if (type == 'status_changed') {
                           iconColor = AppTheme.successColor;
                           iconData = Icons.published_with_changes;
+                        } else if (type == 'broadcast') {
+                          iconColor = priority == 'critical'
+                              ? AppTheme.errorColor
+                              : priority == 'urgent'
+                                  ? Colors.orange.shade800
+                                  : AppTheme.primaryColor;
+                          iconData = Icons.campaign_rounded;
+                        }
+
+                        // Urgency styling: border, light shade, and chip
+                        Color cardBorderColor;
+                        Color cardBgColor;
+                        Color urgencyChipBg;
+                        Color urgencyChipText;
+                        String urgencyLabel;
+
+                        if (priority == 'critical') {
+                          cardBorderColor = AppTheme.errorColor.withOpacity(0.45);
+                          cardBgColor = isRead ? const Color(0xFFFFFBFB) : const Color(0xFFFFF3F3);
+                          urgencyChipBg = AppTheme.errorColor.withOpacity(0.12);
+                          urgencyChipText = AppTheme.errorColor;
+                          urgencyLabel = "CRITICAL";
+                        } else if (priority == 'urgent') {
+                          cardBorderColor = Colors.orange.shade700.withOpacity(0.45);
+                          cardBgColor = isRead ? const Color(0xFFFFFCF7) : const Color(0xFFFFF8EC);
+                          urgencyChipBg = Colors.orange.withOpacity(0.14);
+                          urgencyChipText = Colors.orange.shade900;
+                          urgencyLabel = "URGENT";
+                        } else {
+                          cardBorderColor = isRead
+                              ? AppTheme.borderColor
+                              : AppTheme.accentColor.withOpacity(0.4);
+                          cardBgColor = isRead ? Colors.white : const Color(0xFFF7FAFF);
+                          urgencyChipBg = AppTheme.primaryColor.withOpacity(0.08);
+                          urgencyChipText = AppTheme.primaryColor;
+                          urgencyLabel = "NORMAL";
                         }
 
                         return Card(
-                          elevation: isRead ? 1 : 3,
+                          elevation: isRead ? 0.5 : 2,
                           margin: EdgeInsets.only(bottom: 1.5.h),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                             side: BorderSide(
-                              color: isRead
-                                  ? AppTheme.textTertiary.withValues(alpha: 0.2)
-                                  : AppTheme.accentColor.withValues(alpha: 0.5),
+                              color: cardBorderColor,
                               width: isRead ? 1 : 1.5,
                             ),
                           ),
-                          color: isRead
-                              ? AppTheme.cardColor
-                              : AppTheme.cardColor,
+                          color: cardBgColor,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
                             onTap: () {
@@ -277,14 +343,38 @@ class _NotificationPanelScreenState extends State<NotificationPanelScreen> {
                                                 ),
                                               ),
                                             ),
+                                            // Urgency Chip
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 7,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: urgencyChipBg,
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: urgencyChipText.withOpacity(0.4),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                urgencyLabel,
+                                                style: TextStyle(
+                                                  fontSize: 9.sp,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: urgencyChipText,
+                                                  letterSpacing: 0.4,
+                                                ),
+                                              ),
+                                            ),
                                             if (!isRead)
                                               Container(
                                                 width: 8,
                                                 height: 8,
                                                 margin: EdgeInsets.only(
-                                                  left: 1.w,
+                                                  left: 1.5.w,
                                                 ),
-                                                decoration: BoxDecoration(
+                                                decoration: const BoxDecoration(
                                                   color: AppTheme.accentColor,
                                                   shape: BoxShape.circle,
                                                 ),
