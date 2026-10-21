@@ -5,7 +5,7 @@ import '../../models/lab_model.dart';
 import '../../providers/lab_provider.dart';
 import '../../providers/app_data_provider.dart';
 import 'add_edit_labs_screens.dart';
-import 'lab_detail_screen.dart';
+import 'lab_3d_screen.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 
@@ -197,7 +197,7 @@ class _LabListScreenState extends State<LabListScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => LabDetailScreen(lab: lab),
+              builder: (_) => Lab3DViewScreen(lab: lab),
             ),
           );
         },
