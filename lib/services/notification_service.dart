@@ -117,4 +117,63 @@ class NotificationService {
   Future<void> showPushNotification(String title, String body) async {
     await showPlatformNotification(title, body);
   }
+
+  /// Send broadcast notification to a target audience ('everyone', 'faculty', 'it')
+  Future<int> sendBroadcastNotification({
+    required String title,
+    required String message,
+    required String targetAudience, // 'everyone', 'faculty', 'it'
+    String? senderName,
+    String? priority, // 'normal', 'urgent', 'critical'
+  }) async {
+    try {
+      final usersCol = FirebaseFirestore.instance.collection('users');
+      QuerySnapshot userSnapshot;
+
+      final normalizedAudience = targetAudience.trim().toLowerCase();
+      if (normalizedAudience == 'faculty') {
+        userSnapshot = await usersCol.where('role', isEqualTo: 'Faculty').get();
+      } else if (normalizedAudience == 'it') {
+        userSnapshot =
+            await usersCol.where('role', isEqualTo: 'IT Technician').get();
+      } else {
+        // 'everyone'
+        userSnapshot = await usersCol.get();
+      }
+
+      final docs = userSnapshot.docs;
+      if (docs.isEmpty) return 0;
+
+      final batch = FirebaseFirestore.instance.batch();
+      int count = 0;
+
+      for (var userDoc in docs) {
+        final targetUid = userDoc.id;
+        final notifDoc = _notifications.doc();
+        batch.set(notifDoc, {
+          'id': notifDoc.id,
+          'userId': targetUid,
+          'title': title,
+          'message': message,
+          'type': 'broadcast',
+          'priority': priority ?? 'urgent',
+          'senderName': senderName ?? 'IT Support',
+          'targetAudience': targetAudience,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        count++;
+      }
+
+      await batch.commit();
+
+      // Trigger local platform push alert for immediate confirmation
+      await showPlatformNotification(title, message);
+
+      return count;
+    } catch (e) {
+      debugPrint("Failed to send broadcast notification: $e");
+      rethrow;
+    }
+  }
 }

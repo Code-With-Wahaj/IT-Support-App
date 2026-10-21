@@ -5,6 +5,7 @@ import '../../models/lab_model.dart';
 import '../../providers/lab_provider.dart';
 import '../../providers/app_data_provider.dart';
 import 'add_edit_labs_screens.dart';
+import 'lab_detail_screen.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 
@@ -36,8 +37,11 @@ class _LabListScreenState extends State<LabListScreen> {
           }).toList();
 
     final filteredLabs = roleLabs.where((lab) {
+      final layoutLower = lab.layoutType.toLowerCase().trim();
+      final selectedLower = _selectedLayoutChip.toLowerCase().trim();
       final layoutMatch = _selectedLayoutChip == "All Layouts" ||
-          lab.layoutType.toLowerCase() == _selectedLayoutChip.toLowerCase();
+          (selectedLower == "custom theater" && (layoutLower == "custom theater" || layoutLower == "grid")) ||
+          layoutLower == selectedLower;
       final searchMatch = _searchQuery.isEmpty ||
           lab.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           lab.assignedTo.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -88,7 +92,7 @@ class _LabListScreenState extends State<LabListScreen> {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: ["All Layouts", "Theater", "U", "Custom"]
+                      children: ["All Layouts", "Custom Theater", "Theater", "U", "Custom"]
                           .map((layout) {
                         final selected = _selectedLayoutChip == layout;
                         return Padding(
@@ -190,14 +194,12 @@ class _LabListScreenState extends State<LabListScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          if (isAdmin) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => AddEditLabScreen(lab: lab)),
-            );
-          } else {
-            _showLabDetailsDialog(context, lab);
-          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => LabDetailScreen(lab: lab),
+            ),
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -302,7 +304,7 @@ class _LabListScreenState extends State<LabListScreen> {
                     _specItem(
                       Icons.dashboard_customize_rounded,
                       "Topology",
-                      lab.layoutType.toUpperCase(),
+                      _formatTopology(lab.layoutType),
                     ),
                   ],
                 ),
@@ -397,60 +399,10 @@ class _LabListScreenState extends State<LabListScreen> {
     );
   }
 
-  void _showLabDetailsDialog(BuildContext context, LabModel lab) {
-    final totalWorkstations = (lab.rows * lab.columns) + 1;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.meeting_room_rounded, color: AppTheme.primaryColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(lab.name, style: const TextStyle(fontWeight: FontWeight.bold))),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.person_outline_rounded, color: AppTheme.primaryColor),
-              title: const Text("Assigned Technician"),
-              subtitle: Text(lab.assignedTo, style: const TextStyle(fontWeight: FontWeight.w600)),
-            ),
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.computer_rounded, color: AppTheme.accentColor),
-              title: const Text("Total Workstations"),
-              subtitle: Text("$totalWorkstations PCs (${lab.rows}x${lab.columns} + Instructor)"),
-            ),
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.grid_view_rounded, color: Colors.teal),
-              title: const Text("Layout Configuration"),
-              subtitle: Text(lab.layoutType.toUpperCase()),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Close"),
-          ),
-        ],
-      ),
-    );
+  String _formatTopology(String layout) {
+    final lower = layout.trim().toLowerCase();
+    if (lower == 'grid' || lower == 'custom theater') return "CUSTOM THEATER";
+    if (lower == 'u' || lower == 'u shape') return "U-SHAPE";
+    return layout.toUpperCase();
   }
 }
