@@ -141,6 +141,11 @@ service cloud.firestore {
     match /labs/{labId} {
       allow read: if isAuthenticated();
       allow write: if isTechnician();
+
+      match /pcs/{pcId} {
+        allow read: if isAuthenticated();
+        allow write: if isTechnician();
+      }
     }
 
     match /workstations/{pcId} {

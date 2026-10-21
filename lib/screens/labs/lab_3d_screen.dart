@@ -442,22 +442,14 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
         builder: (context, snapshot) {
           final pcs = Map<String, PcStatusModel>.from(snapshot.data ?? {});
           if (pcs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Loading 3D Digital Twin for ${widget.lab.name}...",
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            // Instant digital-twin fallback based on lab topology
+            pcs['IP'] = PcStatusModel(pcId: 'IP');
+            for (int r = 1; r <= widget.lab.rows; r++) {
+              for (int c = 1; c <= widget.lab.columns; c++) {
+                final id = 'PC-$r-$c';
+                pcs[id] = PcStatusModel(pcId: id);
+              }
+            }
           }
 
           final allList = pcs.values.toList();
