@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
+import '../../providers/app_data_provider.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 import '../dashboard/complaint_detail_screen.dart';
+import 'broadcast_notification_dialog.dart';
 
 class NotificationPanelScreen extends StatefulWidget {
   const NotificationPanelScreen({super.key});
@@ -49,6 +52,10 @@ class _NotificationPanelScreenState extends State<NotificationPanelScreen> {
     final user = FirebaseAuth.instance.currentUser;
     final userId = user?.uid ?? '';
 
+    final appData = Provider.of<AppDataProvider>(context, listen: false);
+    final userRole = appData.userRole.toLowerCase().trim();
+    final canBroadcast = appData.isAdmin || userRole == 'it technician';
+
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
@@ -60,6 +67,12 @@ class _NotificationPanelScreenState extends State<NotificationPanelScreen> {
             ],
           ),
           actions: [
+            if (canBroadcast)
+              IconButton(
+                icon: const Icon(Icons.campaign_rounded),
+                tooltip: "Send Broadcast Alert",
+                onPressed: () => BroadcastNotificationDialog.show(context),
+              ),
             if (userId.isNotEmpty) ...[
               IconButton(
                 icon: const Icon(Icons.done_all),

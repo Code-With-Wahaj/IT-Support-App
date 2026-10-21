@@ -7,6 +7,7 @@ class LabModel {
 
   /// 🔹 NEW: Assigned Technician
   final String assignedTo;
+  final String assignedTechnicianId;
 
   LabModel({
     required this.id,
@@ -15,17 +16,19 @@ class LabModel {
     required this.columns,
     required this.layoutType,
     this.assignedTo = 'Unknown', // default
+    this.assignedTechnicianId = '',
   });
 
   /// 🔥 Firestore → Model
   factory LabModel.fromMap(String id, Map<String, dynamic> map) {
     return LabModel(
       id: id,
-      name: map['name'],
-      rows: map['rows'],
-      columns: map['columns'],
-      layoutType: map['layoutType'],
+      name: map['name'] ?? '',
+      rows: map['rows'] is int ? map['rows'] : int.tryParse('${map['rows']}') ?? 4,
+      columns: map['columns'] is int ? map['columns'] : int.tryParse('${map['columns']}') ?? 5,
+      layoutType: map['layoutType'] ?? 'custom theater',
       assignedTo: map['assignedTo'] ?? 'Unknown',
+      assignedTechnicianId: map['assignedTechnicianId'] ?? '',
     );
   }
 
@@ -37,6 +40,7 @@ class LabModel {
       'columns': columns,
       'layoutType': layoutType,
       'assignedTo': assignedTo,
+      'assignedTechnicianId': assignedTechnicianId,
     };
   }
 
@@ -48,6 +52,7 @@ class LabModel {
     int? columns,
     String? layoutType,
     String? assignedTo,
+    String? assignedTechnicianId,
   }) {
     return LabModel(
       id: id ?? this.id,
@@ -56,6 +61,7 @@ class LabModel {
       columns: columns ?? this.columns,
       layoutType: layoutType ?? this.layoutType,
       assignedTo: assignedTo ?? this.assignedTo,
+      assignedTechnicianId: assignedTechnicianId ?? this.assignedTechnicianId,
     );
   }
 }

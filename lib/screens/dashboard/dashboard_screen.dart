@@ -12,6 +12,7 @@ import '../../utils/responsive_utils.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/expressive_logo.dart';
 import '../../widgets/interactive_tour_overlay.dart';
+import '../notifications/broadcast_notification_dialog.dart';
 import 'complaint_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -550,8 +551,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ),
                                 ),
-
-
+                              if (isAdmin ||
+                                  role.toLowerCase() == 'it technician')
+                                SizedBox(
+                                  width: itemW,
+                                  child: _buildModuleCard(
+                                    title: "Broadcast Alert",
+                                    subtitle:
+                                        "Instant push & alerts to Everyone, Faculty or IT",
+                                    icon: Icons.campaign_rounded,
+                                    color: Colors.deepOrangeAccent,
+                                    onTap: () =>
+                                        BroadcastNotificationDialog.show(context),
+                                  ),
+                                ),
                             ];
 
                             return Wrap(

@@ -22,7 +22,7 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
 
   int rows = 4;
   int columns = 5;
-  String layoutType = 'theater';
+  String layoutType = 'custom theater';
 
   /// 🔹 Allowed Lab Names
   late final List<String> labNames;
@@ -42,7 +42,16 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
       selectedLabName = widget.lab!.name;
       rows = widget.lab!.rows;
       columns = widget.lab!.columns;
-      layoutType = widget.lab!.layoutType;
+      final incoming = widget.lab!.layoutType.toLowerCase().trim();
+      if (incoming == 'grid' || incoming == 'custom theater') {
+        layoutType = 'custom theater';
+      } else if (incoming == 'theater') {
+        layoutType = 'theater';
+      } else if (incoming == 'u' || incoming == 'u shape') {
+        layoutType = 'u';
+      } else {
+        layoutType = 'custom';
+      }
     }
   }
 
@@ -191,9 +200,10 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
 
                 const SizedBox(height: 16),
 
-                DropdownButtonFormField(
+                DropdownButtonFormField<String>(
                   value: layoutType,
                   items: const [
+                    DropdownMenuItem(value: 'custom theater', child: Text('Custom Theater')),
                     DropdownMenuItem(value: 'theater', child: Text('Theater')),
                     DropdownMenuItem(value: 'u', child: Text('U Shape')),
                     DropdownMenuItem(value: 'custom', child: Text('Custom')),
