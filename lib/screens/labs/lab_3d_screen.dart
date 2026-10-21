@@ -304,7 +304,6 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
                   _showQuickReportDialog(context, status.pcId);
                 },
               ),
-              const Spacer(),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel'),
