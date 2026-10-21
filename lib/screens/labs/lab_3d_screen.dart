@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import '../../models/lab_model.dart';
 import '../../models/pc_status_model.dart';
@@ -20,6 +21,7 @@ class Lab3DViewScreen extends StatefulWidget {
 
 class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
   String _healthFilterChip = "All PCs";
+  final TransformationController _transformationController = TransformationController();
 
   @override
   void initState() {
@@ -29,6 +31,36 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
         context.read<LabProvider>().ensureLabPcsInitialized(widget.lab);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      // Mouse wheel zoom: scroll up (negative dy) zooms in, scroll down (positive dy) zooms out
+      final double zoomDelta = event.scrollDelta.dy < 0 ? 1.10 : 0.90;
+      _applyZoom(zoomDelta, event.localPosition);
+    }
+  }
+
+  void _applyZoom(double factor, Offset focalPoint) {
+    final Matrix4 currentMatrix = _transformationController.value;
+    final double currentScale = currentMatrix.getMaxScaleOnAxis();
+    final double targetScale = (currentScale * factor).clamp(0.35, 3.0);
+    final double actualFactor = targetScale / currentScale;
+
+    if ((actualFactor - 1.0).abs() < 0.001) return;
+
+    final Matrix4 translation = Matrix4.identity()
+      ..translate(focalPoint.dx, focalPoint.dy)
+      ..scale(actualFactor)
+      ..translate(-focalPoint.dx, -focalPoint.dy);
+
+    _transformationController.value = translation * currentMatrix;
   }
 
   bool _isPcHealthy(PcStatusModel s) {
@@ -393,18 +425,31 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
                       ),
                     ),
 
-                    InteractiveViewer(
-                      minScale: 0.45,
-                      maxScale: 2.3,
-                      boundaryMargin: const EdgeInsets.all(100),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
-                        child: Center(
-                          child: _buildTopologyLayout(
-                            context,
-                            normalizedLayout,
-                            filteredStudentPcs,
-                            instructorPc,
+                    Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerSignal: _handlePointerSignal,
+                      child: InteractiveViewer(
+                        transformationController: _transformationController,
+                        minScale: 0.35,
+                        maxScale: 3.0,
+                        boundaryMargin: const EdgeInsets.all(350),
+                        panEnabled: true,
+                        scaleEnabled: true,
+                        trackpadScrollCausesScale: true,
+                        child: SizedBox.expand(
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                                child: _buildTopologyLayout(
+                                  context,
+                                  normalizedLayout,
+                                  filteredStudentPcs,
+                                  instructorPc,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -663,22 +708,20 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 14),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: rowPcs.map((pc) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 7),
-                    child: PcTile3D(
-                      pcId: pc.pcId,
-                      status: pc,
-                      isActive: true,
-                      onTap: () => _openPcDialog(context, pc),
-                    ),
-                  );
-                }).toList(),
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: rowPcs.map((pc) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  child: PcTile3D(
+                    pcId: pc.pcId,
+                    status: pc,
+                    isActive: true,
+                    onTap: () => _openPcDialog(context, pc),
+                  ),
+                );
+              }).toList(),
             ),
           );
         }),
