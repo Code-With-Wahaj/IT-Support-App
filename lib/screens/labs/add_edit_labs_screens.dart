@@ -22,7 +22,8 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
 
   int rows = 4;
   int columns = 5;
-  String layoutType = 'custom theater';
+  String layoutType = 'theater';
+  final Set<String> disabledPcs = {};
 
   /// 🔹 Allowed Lab Names
   late final List<String> labNames;
@@ -42,15 +43,14 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
       selectedLabName = widget.lab!.name;
       rows = widget.lab!.rows;
       columns = widget.lab!.columns;
+      disabledPcs.addAll(widget.lab!.disabledPcs);
       final incoming = widget.lab!.layoutType.toLowerCase().trim();
-      if (incoming == 'grid' || incoming == 'custom theater') {
-        layoutType = 'custom theater';
-      } else if (incoming == 'theater') {
-        layoutType = 'theater';
-      } else if (incoming == 'u' || incoming == 'u shape') {
+      if (incoming == 'u' || incoming == 'u shape' || incoming == 'u-shaped') {
         layoutType = 'u';
-      } else {
+      } else if (incoming == 'custom' || incoming == 'custom theater') {
         layoutType = 'custom';
+      } else {
+        layoutType = 'theater';
       }
     }
   }
@@ -60,12 +60,13 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
     final List<PcPosition> grid = [];
     for (int r = 0; r < rows; r++) {
       for (int c = 0; c < columns; c++) {
+        final pcId = 'PC-${r + 1}-${c + 1}';
         grid.add(
           PcPosition(
             row: r,
             column: c,
-            isActive: true,
-            pcId: 'PC-${r + 1}-${c + 1}',
+            isActive: !disabledPcs.contains(pcId),
+            pcId: pcId,
           ),
         );
       }
@@ -73,55 +74,127 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
     return grid;
   }
 
-  /// 🔹 LIVE PREVIEW
+  /// 🔹 LIVE PREVIEW WITH INTERACTIVE "NO PC" TOGGLE
   Widget _buildPreviewGrid() {
     final grid = _generateGrid();
+    final activeCount = (rows * columns) - disabledPcs.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Interactive Lab Preview',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$activeCount Active • ${disabledPcs.length} No PC',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
         const Text(
-          'Live Lab Preview',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          '💡 Tap any workstation below to toggle it as "No PC" (empty desk). It will disappear from the 3D topology.',
+          style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
         ),
         const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: AppTheme.cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.textTertiary.withOpacity(0.2)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppTheme.borderColor),
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Column(
               children: List.generate(rows, (r) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(columns, (c) {
-                    final pc = grid.firstWhere(
-                      (e) => e.row == r && e.column == c,
-                    );
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(columns, (c) {
+                      final pc = grid.firstWhere(
+                        (e) => e.row == r && e.column == c,
+                      );
+                      final isNoPc = disabledPcs.contains(pc.pcId);
 
-                    return Container(
-                      width: 40,
-                      height: 40,
-                      margin: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          pc.pcId.split('-').last,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
+                      return Tooltip(
+                        message: isNoPc
+                            ? 'Tap to restore ${pc.pcId}'
+                            : 'Tap to mark ${pc.pcId} as No PC',
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              if (isNoPc) {
+                                disabledPcs.remove(pc.pcId);
+                              } else {
+                                disabledPcs.add(pc.pcId);
+                              }
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 52,
+                            height: 48,
+                            margin: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: isNoPc
+                                  ? Colors.grey.shade100
+                                  : AppTheme.primaryColor,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isNoPc
+                                    ? Colors.red.shade300
+                                    : AppTheme.accentColor,
+                                width: isNoPc ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  isNoPc
+                                      ? Icons.close_rounded
+                                      : Icons.desktop_windows_rounded,
+                                  size: 16,
+                                  color: isNoPc
+                                      ? Colors.red.shade400
+                                      : Colors.white,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isNoPc ? 'NO PC' : pc.pcId.replaceFirst('PC-', ''),
+                                  style: TextStyle(
+                                    color: isNoPc
+                                        ? Colors.red.shade700
+                                        : Colors.white,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ),
                 );
               }),
             ),
@@ -155,6 +228,9 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
       rows: rows,
       columns: columns,
       layoutType: layoutType,
+      assignedTo: widget.lab?.assignedTo ?? 'Unknown',
+      assignedTechnicianId: widget.lab?.assignedTechnicianId ?? '',
+      disabledPcs: disabledPcs.toList(),
     );
 
     try {
@@ -203,13 +279,12 @@ class _AddEditLabScreenState extends State<AddEditLabScreen> {
                 DropdownButtonFormField<String>(
                   value: layoutType,
                   items: const [
-                    DropdownMenuItem(value: 'custom theater', child: Text('Custom Theater')),
                     DropdownMenuItem(value: 'theater', child: Text('Theater')),
-                    DropdownMenuItem(value: 'u', child: Text('U Shape')),
+                    DropdownMenuItem(value: 'u', child: Text('U-shaped')),
                     DropdownMenuItem(value: 'custom', child: Text('Custom')),
                   ],
                   onChanged: (v) => setState(() => layoutType = v!),
-                  decoration: const InputDecoration(labelText: 'Layout Type'),
+                  decoration: const InputDecoration(labelText: 'Layout Topology'),
                 ),
 
                 const SizedBox(height: 16),

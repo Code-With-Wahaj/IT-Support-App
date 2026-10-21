@@ -118,13 +118,13 @@ class FilterComplaintsProvider extends ChangeNotifier {
     if (filterType == null) return [];
     switch (filterType) {
       case "IT Technician":
-        return itTechnicians;
+        return ["All IT Technicians", ...itTechnicians];
       case "Faculty":
-        return faculties;
+        return ["All Faculties", ...faculties];
       case "Lab":
-        return labs;
+        return ["All Labs", ...labs];
       case "Issue":
-        return issues;
+        return ["All Issues", ...issues];
       default:
         return [];
     }
@@ -160,7 +160,46 @@ class FilterComplaintsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (filterType == "IT Technician") {
+      final isAll = subFilter == "All IT Technicians" ||
+          subFilter == "All Faculties" ||
+          subFilter == "All Labs" ||
+          subFilter == "All Issues" ||
+          (subFilter?.toLowerCase().startsWith("all") ?? false);
+
+      if (isAll) {
+        final q = _firestore
+            .collection('complaints')
+            .orderBy('timestamp', descending: true);
+        final snap = await q.get();
+
+        if (filterType == "IT Technician") {
+          final filtered = snap.docs.where((d) {
+            final t = ((d.data() as Map<String, dynamic>)['assignedToName'] ?? '')
+                .toString()
+                .trim();
+            return t.isNotEmpty && t != 'Not Assigned';
+          }).toList();
+          loadedComplaints = filtered.isNotEmpty ? filtered : snap.docs;
+        } else if (filterType == "Faculty") {
+          final filtered = snap.docs.where((d) {
+            final f = ((d.data() as Map<String, dynamic>)['facultyName'] ?? '')
+                .toString()
+                .trim();
+            return f.isNotEmpty;
+          }).toList();
+          loadedComplaints = filtered.isNotEmpty ? filtered : snap.docs;
+        } else if (filterType == "Lab") {
+          final filtered = snap.docs.where((d) {
+            final l = ((d.data() as Map<String, dynamic>)['lab'] ?? '')
+                .toString()
+                .trim();
+            return l.isNotEmpty;
+          }).toList();
+          loadedComplaints = filtered.isNotEmpty ? filtered : snap.docs;
+        } else {
+          loadedComplaints = snap.docs;
+        }
+      } else if (filterType == "IT Technician") {
         // union of assignedToName OR resolvedByName
         final q1 = _firestore.collection('complaints')
             .where('assignedToName', isEqualTo: subFilter)

@@ -629,6 +629,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: ChoiceChip(
+                                  showCheckmark: false,
                                   label: Text(
                                     st,
                                     style: TextStyle(
@@ -666,6 +667,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: FilterChip(
+                                  showCheckmark: false,
                                   label: Text(
                                     cat == "All" ? "All Categories" : cat,
                                     style: TextStyle(
@@ -677,7 +679,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   selected: selected,
                                   selectedColor: AppTheme.primaryColor,
-                                  checkmarkColor: Colors.white,
                                   onSelected: (_) => setState(
                                     () => _selectedCategoryChip = cat,
                                   ),
@@ -698,6 +699,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: ChoiceChip(
+                                    showCheckmark: false,
                                     avatar: Icon(
                                       Icons.computer,
                                       size: 15,
@@ -1049,7 +1051,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                (data['message'] ?? '').toString(),
+                (data['message'] ?? '')
+                    .toString()
+                    .replaceFirst(RegExp(r'^\[.*?\]\s*'), ''),
                 style: const TextStyle(
                   fontSize: 14,
                   color: AppTheme.textPrimary,

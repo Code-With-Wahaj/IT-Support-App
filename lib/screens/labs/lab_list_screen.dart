@@ -39,9 +39,18 @@ class _LabListScreenState extends State<LabListScreen> {
     final filteredLabs = roleLabs.where((lab) {
       final layoutLower = lab.layoutType.toLowerCase().trim();
       final selectedLower = _selectedLayoutChip.toLowerCase().trim();
-      final layoutMatch = _selectedLayoutChip == "All Layouts" ||
-          (selectedLower == "custom theater" && (layoutLower == "custom theater" || layoutLower == "grid")) ||
-          layoutLower == selectedLower;
+      bool layoutMatch = _selectedLayoutChip == "All Layouts";
+      if (!layoutMatch) {
+        if (selectedLower == "theater") {
+          layoutMatch = layoutLower == "theater";
+        } else if (selectedLower == "u-shaped" || selectedLower == "u") {
+          layoutMatch = layoutLower == "u" || layoutLower == "u shape" || layoutLower == "u-shaped";
+        } else if (selectedLower == "custom") {
+          layoutMatch = layoutLower == "custom" || layoutLower == "custom theater" || layoutLower == "grid";
+        } else {
+          layoutMatch = layoutLower == selectedLower;
+        }
+      }
       final searchMatch = _searchQuery.isEmpty ||
           lab.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           lab.assignedTo.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -92,14 +101,15 @@ class _LabListScreenState extends State<LabListScreen> {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: ["All Layouts", "Custom Theater", "Theater", "U", "Custom"]
+                      children: ["All Layouts", "Theater", "U-shaped", "Custom"]
                           .map((layout) {
                         final selected = _selectedLayoutChip == layout;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
+                            showCheckmark: false,
                             label: Text(
-                              layout == "U" ? "U-Shape Layout" : layout,
+                              layout,
                               style: TextStyle(
                                 color: selected
                                     ? Colors.white
@@ -401,8 +411,8 @@ class _LabListScreenState extends State<LabListScreen> {
 
   String _formatTopology(String layout) {
     final lower = layout.trim().toLowerCase();
-    if (lower == 'grid' || lower == 'custom theater') return "CUSTOM THEATER";
-    if (lower == 'u' || lower == 'u shape') return "U-SHAPE";
-    return layout.toUpperCase();
+    if (lower == 'u' || lower == 'u shape' || lower == 'u-shaped') return "U-SHAPED";
+    if (lower == 'custom' || lower == 'custom theater' || lower == 'grid') return "CUSTOM";
+    return "THEATER";
   }
 }

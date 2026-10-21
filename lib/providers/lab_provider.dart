@@ -77,6 +77,7 @@ class LabProvider extends ChangeNotifier {
     for (int r = 0; r < lab.rows; r++) {
       for (int c = 0; c < lab.columns; c++) {
         final id = 'PC-${r + 1}-${c + 1}';
+        if (lab.disabledPcs.contains(id)) continue;
         batch.set(labRef.collection('pcs').doc(id), PcStatusModel(pcId: id).toMap());
       }
     }
@@ -97,6 +98,13 @@ class LabProvider extends ChangeNotifier {
     for (int r = 0; r < lab.rows; r++) {
       for (int c = 0; c < lab.columns; c++) {
         final id = 'PC-${r + 1}-${c + 1}';
+        if (lab.disabledPcs.contains(id)) {
+          if (existingIds.contains(id)) {
+            batch.delete(labRef.collection('pcs').doc(id));
+            existingIds.remove(id);
+          }
+          continue;
+        }
         if (!existingIds.contains(id)) {
           batch.set(labRef.collection('pcs').doc(id), PcStatusModel(pcId: id).toMap());
         }
@@ -110,6 +118,26 @@ class LabProvider extends ChangeNotifier {
     }
 
     await batch.commit();
+  }
+
+  Future<void> togglePcActiveStatus(String labId, String pcId, bool makeNoPc) async {
+    final labRef = _db.collection('labs').doc(labId);
+    final labDoc = await labRef.get();
+    if (!labDoc.exists) return;
+    final List<String> disabled = List<String>.from(labDoc.data()?['disabledPcs'] ?? []);
+    if (makeNoPc) {
+      if (!disabled.contains(pcId)) disabled.add(pcId);
+      await labRef.collection('pcs').doc(pcId).delete();
+    } else {
+      disabled.remove(pcId);
+      await labRef.collection('pcs').doc(pcId).set(PcStatusModel(pcId: pcId).toMap());
+    }
+    await labRef.update({'disabledPcs': disabled});
+    final index = labs.indexWhere((l) => l.id == labId);
+    if (index != -1) {
+      labs[index] = labs[index].copyWith(disabledPcs: disabled);
+      notifyListeners();
+    }
   }
 
   Future<void> deleteLab(String id) async {

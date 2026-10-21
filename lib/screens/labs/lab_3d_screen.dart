@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 import '../../widgets/pc_tile_3d.dart';
 import '../../services/export_excel_service.dart';
+import '../../widgets/animations/network_background.dart';
 
 class Lab3DViewScreen extends StatefulWidget {
   final LabModel lab;
@@ -42,145 +41,6 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
         s.internetCableOk;
   }
 
-  void _showQuickReportDialog(BuildContext context, [String? prefilledPc]) {
-    final titleController = TextEditingController(
-      text: prefilledPc != null ? "Hardware issue on $prefilledPc" : "",
-    );
-    final msgController = TextEditingController();
-    String category = 'Hardware';
-    String priority = 'Medium';
-    bool isSubmitting = false;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text("Report Issue in ${widget.lab.name}"),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                    labelText: "Issue Title",
-                    hintText: "e.g. Mouse not responding, No internet",
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: category,
-                  decoration: const InputDecoration(labelText: "Category"),
-                  items: const [
-                    DropdownMenuItem(value: "Hardware", child: Text("Hardware")),
-                    DropdownMenuItem(value: "Software", child: Text("Software")),
-                    DropdownMenuItem(value: "Network", child: Text("Network")),
-                    DropdownMenuItem(value: "Exam", child: Text("Exam / Critical")),
-                  ],
-                  onChanged: (v) => setDialogState(() => category = v ?? 'Hardware'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: priority,
-                  decoration: const InputDecoration(labelText: "Priority"),
-                  items: const [
-                    DropdownMenuItem(value: "Low", child: Text("Low")),
-                    DropdownMenuItem(value: "Medium", child: Text("Medium")),
-                    DropdownMenuItem(value: "High", child: Text("High")),
-                  ],
-                  onChanged: (v) => setDialogState(() => priority = v ?? 'Medium'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: msgController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: "Description",
-                    hintText: "Provide details of the problem...",
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: isSubmitting
-                  ? null
-                  : () async {
-                      if (titleController.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Please enter an issue title")),
-                        );
-                        return;
-                      }
-
-                      setDialogState(() => isSubmitting = true);
-                      try {
-                        final user = FirebaseAuth.instance.currentUser;
-                        final userEmail = user?.email ?? 'anonymous';
-                        final userName = user?.displayName ?? userEmail.split('@')[0];
-
-                        await FirebaseFirestore.instance.collection('complaints').add({
-                          'title': titleController.text.trim(),
-                          'description': msgController.text.trim(),
-                          'lab': widget.lab.name,
-                          'labId': widget.lab.id,
-                          'category': category,
-                          'priority': priority,
-                          'status': 'pending',
-                          'senderEmail': userEmail,
-                          'senderName': userName,
-                          'userId': user?.uid ?? '',
-                          'createdAt': FieldValue.serverTimestamp(),
-                          'assignedTo': widget.lab.assignedTo,
-                          'pcId': prefilledPc ?? '',
-                        });
-
-                        if (context.mounted) {
-                          Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Support complaint filed successfully!"),
-                              backgroundColor: AppTheme.successColor,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        setDialogState(() => isSubmitting = false);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Failed to submit issue: $e"),
-                              backgroundColor: AppTheme.errorColor,
-                            ),
-                          );
-                        }
-                      }
-                    },
-              child: isSubmitting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text("Submit Report"),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _openPcDialog(BuildContext context, PcStatusModel original) async {
     final provider = context.read<LabProvider>();
     final status = original.copy();
@@ -194,72 +54,50 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setDialogState) {
+          final isInstructor = status.pcId == 'IP';
           return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(
               children: [
-                const Icon(Icons.desktop_windows_rounded, color: AppTheme.accentColor),
+                Icon(
+                  isInstructor ? Icons.school_rounded : Icons.desktop_windows_rounded,
+                  color: AppTheme.accentColor,
+                ),
                 const SizedBox(width: 10),
-                Text("Configure ${status.pcId}"),
+                Expanded(
+                  child: Text(
+                    isInstructor ? "Instructor Node (IP)" : "Configure ${status.pcId}",
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+                  ),
+                ),
               ],
             ),
-            content: SizedBox(
-              width: 440,
-              child: SingleChildScrollView(
+            content: SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       "Toggle Component Health Chips",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textSecondary,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
                     ),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _toggleChip(
-                          "CPU Working",
-                          status.cpuWorking,
-                          (v) => setDialogState(() => status.cpuWorking = v),
-                        ),
-                        _toggleChip(
-                          "LED Monitor",
-                          status.ledOk,
-                          (v) => setDialogState(() => status.ledOk = v),
-                        ),
-                        _toggleChip(
-                          "Keyboard",
-                          status.keyboardOk,
-                          (v) => setDialogState(() => status.keyboardOk = v),
-                        ),
-                        _toggleChip(
-                          "Mouse",
-                          status.mouseOk,
-                          (v) => setDialogState(() => status.mouseOk = v),
-                        ),
-                        _toggleChip(
-                          "VGA / Display Cable",
-                          status.vgaCableOk,
-                          (v) => setDialogState(() => status.vgaCableOk = v),
-                        ),
-                        _toggleChip(
-                          "Power Cable",
-                          status.powerCableOk,
-                          (v) => setDialogState(() => status.powerCableOk = v),
-                        ),
-                        _toggleChip(
-                          "Ethernet / LAN",
-                          status.internetCableOk,
-                          (v) => setDialogState(() => status.internetCableOk = v),
-                        ),
+                        _toggleChip("CPU Working", status.cpuWorking, (v) => setDialogState(() => status.cpuWorking = v)),
+                        _toggleChip("LED Monitor", status.ledOk, (v) => setDialogState(() => status.ledOk = v)),
+                        _toggleChip("Keyboard", status.keyboardOk, (v) => setDialogState(() => status.keyboardOk = v)),
+                        _toggleChip("Mouse", status.mouseOk, (v) => setDialogState(() => status.mouseOk = v)),
+                        _toggleChip("VGA / Display Cable", status.vgaCableOk, (v) => setDialogState(() => status.vgaCableOk = v)),
+                        _toggleChip("Power Cable", status.powerCableOk, (v) => setDialogState(() => status.powerCableOk = v)),
+                        _toggleChip("Ethernet / LAN", status.internetCableOk, (v) => setDialogState(() => status.internetCableOk = v)),
                       ],
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -295,15 +133,24 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
               ),
             ),
             actions: [
-              TextButton.icon(
-                icon: const Icon(Icons.report_problem_outlined, size: 16),
-                label: const Text('Report Issue'),
-                style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showQuickReportDialog(context, status.pcId);
-                },
-              ),
+              if (!isInstructor)
+                TextButton.icon(
+                  icon: const Icon(Icons.block_rounded, size: 16),
+                  label: const Text('Mark as No PC'),
+                  style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await provider.togglePcActiveStatus(widget.lab.id, status.pcId, true);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("${status.pcId} removed from topology"),
+                          backgroundColor: Colors.orange.shade800,
+                        ),
+                      );
+                    }
+                  },
+                ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel'),
@@ -341,6 +188,7 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
 
   Widget _toggleChip(String label, bool value, ValueChanged<bool> onChanged) {
     return FilterChip(
+      showCheckmark: false,
       label: Text(
         label,
         style: TextStyle(
@@ -350,7 +198,6 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
       ),
       selected: value,
       selectedColor: AppTheme.successColor,
-      checkmarkColor: Colors.white,
       onSelected: onChanged,
     );
   }
@@ -365,12 +212,21 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
     return parts.length > 2 ? (int.tryParse(parts[2]) ?? 1) - 1 : 0;
   }
 
+  String _formatTopologyTitle(String layout) {
+    final lower = layout.trim().toLowerCase();
+    if (lower == 'u' || lower == 'u shape' || lower == 'u-shaped') return "U-SHAPED";
+    if (lower == 'custom' || lower == 'custom theater') return "CUSTOM";
+    return "THEATER";
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.read<LabProvider>();
     final bool isMobile = !kIsWeb &&
         (Theme.of(context).platform == TargetPlatform.android ||
             Theme.of(context).platform == TargetPlatform.iOS);
+
+    final normalizedLayout = widget.lab.layoutType.trim().toLowerCase();
 
     return Scaffold(
       appBar: AppBar(
@@ -390,7 +246,7 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
                     border: Border.all(color: AppTheme.accentGlow.withValues(alpha: 0.4)),
                   ),
                   child: Text(
-                    widget.lab.layoutType.toUpperCase(),
+                    _formatTopologyTitle(widget.lab.layoutType),
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -408,11 +264,6 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.report_problem_rounded),
-            tooltip: 'Report Lab Issue',
-            onPressed: () => _showQuickReportDialog(context),
-          ),
           if (!isMobile)
             IconButton(
               icon: const Icon(Icons.download_rounded),
@@ -451,11 +302,23 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
             }
           }
 
+          // Filter out disabled "No PC" slots from topology
+          final disabledSet = widget.lab.disabledPcs.toSet();
+          for (final disId in disabledSet) {
+            pcs.remove(disId);
+          }
+
           final allList = pcs.values.toList();
           final healthyCount = allList.where(_isPcHealthy).length;
           final faultyCount = allList.length - healthyCount;
 
           final instructorPc = pcs.remove('IP');
+
+          final filteredStudentPcs = pcs.values.where((p) {
+            if (_healthFilterChip == "Healthy") return _isPcHealthy(p);
+            if (_healthFilterChip == "Faulty") return !_isPcHealthy(p);
+            return true;
+          }).toList();
 
           return Column(
             children: [
@@ -492,6 +355,7 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
+                              showCheckmark: false,
                               label: Text(chip),
                               selected: selected,
                               onSelected: (_) =>
@@ -501,7 +365,7 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
                         }).toList(),
                       ),
                       const Text(
-                        "Tap any workstation to inspect or toggle hardware status",
+                        "Tap any workstation to inspect hardware status or remove",
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textSecondary,
@@ -512,79 +376,323 @@ class _Lab3DViewScreenState extends State<Lab3DViewScreen> {
                 ),
               ),
 
-              // Interactive Workstation Matrix
+              // Interactive Digital Twin Workstation Matrix with Animated Network Background
               Expanded(
-                child: InteractiveViewer(
-                  minScale: 0.5,
-                  maxScale: 2.2,
-                  boundaryMargin: const EdgeInsets.all(80),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (instructorPc != null) ...[
-                            PcTile3D(
-                              pcId: 'Instructor (IP)',
-                              status: instructorPc,
-                              isActive: true,
-                              onTap: () => _openPcDialog(context, instructorPc),
-                            ),
-                            const SizedBox(height: 24),
-                          ],
-                          ...List.generate(widget.lab.rows, (row) {
-                            final rowPcs = pcs.values
-                                .where((p) => _rowOf(p.pcId) == row)
-                                .where((p) {
-                              if (_healthFilterChip == "Healthy") {
-                                return _isPcHealthy(p);
-                              }
-                              if (_healthFilterChip == "Faulty") {
-                                return !_isPcHealthy(p);
-                              }
-                              return true;
-                            }).toList()
-                              ..sort(
-                                (a, b) =>
-                                    _colOf(a.pcId).compareTo(_colOf(b.pcId)),
-                              );
-
-                            if (rowPcs.isEmpty) return const SizedBox.shrink();
-
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: rowPcs.map((pc) {
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 7,
-                                      ),
-                                      child: PcTile3D(
-                                        pcId: pc.pcId,
-                                        status: pc,
-                                        isActive: true,
-                                        onTap: () => _openPcDialog(context, pc),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
+                child: Stack(
+                  children: [
+                    // Upgraded Network Background
+                    Positioned.fill(
+                      child: Opacity(
+                        opacity: 0.12,
+                        child: const AnimatedNetworkBackground(
+                          color: AppTheme.primaryColor,
+                          backgroundColor: Colors.transparent,
+                          numberOfNodes: 22,
+                          connectionDistance: 130,
+                        ),
                       ),
                     ),
-                  ),
+
+                    InteractiveViewer(
+                      minScale: 0.45,
+                      maxScale: 2.3,
+                      boundaryMargin: const EdgeInsets.all(100),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                        child: Center(
+                          child: _buildTopologyLayout(
+                            context,
+                            normalizedLayout,
+                            filteredStudentPcs,
+                            instructorPc,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           );
         },
       ),
+    );
+  }
+
+  /// Master Topology Switcher: Theater, U-shaped, Custom
+  Widget _buildTopologyLayout(
+    BuildContext context,
+    String layout,
+    List<PcStatusModel> studentPcs,
+    PcStatusModel? instructorPc,
+  ) {
+    if (layout == 'u' || layout == 'u shape' || layout == 'u-shaped') {
+      return _buildUShapedLayout(context, studentPcs, instructorPc);
+    } else if (layout == 'custom') {
+      return _buildCustomLayout(context, studentPcs, instructorPc);
+    }
+    // Default: Theater Layout (Drawing 2)
+    return _buildTheaterLayout(context, studentPcs, instructorPc);
+  }
+
+  /// 📐 THEATER LAYOUT (Drawing 2): Dual-Bank Split Rows with Walkway + Instructor Alone on Bottom Right
+  Widget _buildTheaterLayout(
+    BuildContext context,
+    List<PcStatusModel> studentPcs,
+    PcStatusModel? instructorPc,
+  ) {
+    final int totalRows = widget.lab.rows;
+    final int totalCols = widget.lab.columns;
+    final int splitCol = (totalCols / 2).ceil();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Stepped Rows of Dual Banks
+        ...List.generate(totalRows, (row) {
+          final rowPcs = studentPcs.where((p) => _rowOf(p.pcId) == row).toList()
+            ..sort((a, b) => _colOf(a.pcId).compareTo(_colOf(b.pcId)));
+
+          final leftBank = rowPcs.where((p) => _colOf(p.pcId) < splitCol).toList();
+          final rightBank = rowPcs.where((p) => _colOf(p.pcId) >= splitCol).toList();
+
+          if (leftBank.isEmpty && rightBank.isEmpty) return const SizedBox.shrink();
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Left Bank Desks
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: leftBank.map((pc) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: PcTile3D(
+                      pcId: pc.pcId,
+                      status: pc,
+                      isActive: true,
+                      onTap: () => _openPcDialog(context, pc),
+                    ),
+                  )).toList(),
+                ),
+
+                // Center Walkway Aisle
+                Container(
+                  width: 56,
+                  height: 40,
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Center(
+                    child: Container(
+                      height: 24,
+                      width: 2,
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentGlow.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Right Bank Desks
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: rightBank.map((pc) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: PcTile3D(
+                      pcId: pc.pcId,
+                      status: pc,
+                      isActive: true,
+                      onTap: () => _openPcDialog(context, pc),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ),
+          );
+        }),
+
+        const SizedBox(height: 24),
+
+        // Front Stage: Instructor Workstation Sitting Alone on the Bottom Right
+        if (instructorPc != null)
+          Container(
+            padding: const EdgeInsets.only(top: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Balanced left spacing so Instructor sits on the right bank
+                const SizedBox(width: 140),
+                const SizedBox(width: 56),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.accentColor.withValues(alpha: 0.15),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: PcTile3D(
+                    pcId: 'Instructor (IP)',
+                    status: instructorPc,
+                    isActive: true,
+                    onTap: () => _openPcDialog(context, instructorPc),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 📐 U-SHAPED LAYOUT (Drawing 1): Left Bank & Right Bank Facing Inwards + Instructor Center Bottom
+  Widget _buildUShapedLayout(
+    BuildContext context,
+    List<PcStatusModel> studentPcs,
+    PcStatusModel? instructorPc,
+  ) {
+    final int totalRows = widget.lab.rows;
+    final int totalCols = widget.lab.columns;
+    final int splitCol = (totalCols / 2).ceil();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Perimeter U-Columns
+        ...List.generate(totalRows, (row) {
+          final rowPcs = studentPcs.where((p) => _rowOf(p.pcId) == row).toList()
+            ..sort((a, b) => _colOf(a.pcId).compareTo(_colOf(b.pcId)));
+
+          final leftSide = rowPcs.where((p) => _colOf(p.pcId) < splitCol).toList();
+          final rightSide = rowPcs.where((p) => _colOf(p.pcId) >= splitCol).toList();
+
+          if (leftSide.isEmpty && rightSide.isEmpty) return const SizedBox.shrink();
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Left Perimeter Desk
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: leftSide.map((pc) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: PcTile3D(
+                      pcId: pc.pcId,
+                      status: pc,
+                      isActive: true,
+                      onTap: () => _openPcDialog(context, pc),
+                    ),
+                  )).toList(),
+                ),
+
+                // Wide Open Center Floor
+                const SizedBox(width: 160),
+
+                // Right Perimeter Desk
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: rightSide.map((pc) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: PcTile3D(
+                      pcId: pc.pcId,
+                      status: pc,
+                      isActive: true,
+                      onTap: () => _openPcDialog(context, pc),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ),
+          );
+        }),
+
+        const SizedBox(height: 32),
+
+        // Front Center: Instructor Workstation Sitting Alone in the Middle
+        if (instructorPc != null)
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.accentColor.withValues(alpha: 0.15),
+                    blurRadius: 16,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: PcTile3D(
+                pcId: 'Instructor (IP)',
+                status: instructorPc,
+                isActive: true,
+                onTap: () => _openPcDialog(context, instructorPc),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 📐 CUSTOM LAYOUT: Full Flexible Continuous Matrix
+  Widget _buildCustomLayout(
+    BuildContext context,
+    List<PcStatusModel> studentPcs,
+    PcStatusModel? instructorPc,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ...List.generate(widget.lab.rows, (row) {
+          final rowPcs = studentPcs.where((p) => _rowOf(p.pcId) == row).toList()
+            ..sort((a, b) => _colOf(a.pcId).compareTo(_colOf(b.pcId)));
+
+          if (rowPcs.isEmpty) return const SizedBox.shrink();
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: rowPcs.map((pc) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    child: PcTile3D(
+                      pcId: pc.pcId,
+                      status: pc,
+                      isActive: true,
+                      onTap: () => _openPcDialog(context, pc),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          );
+        }),
+
+        const SizedBox(height: 24),
+
+        if (instructorPc != null)
+          PcTile3D(
+            pcId: 'Instructor (IP)',
+            status: instructorPc,
+            isActive: true,
+            onTap: () => _openPcDialog(context, instructorPc),
+          ),
+      ],
     );
   }
 }
