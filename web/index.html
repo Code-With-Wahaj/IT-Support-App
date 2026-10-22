@@ -49,84 +49,11 @@
       height: 100%;
       width: 100%;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background-color: #0F172A !important;
-    }
-    #splash-root {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      user-select: none;
-      text-align: center;
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-    }
-    .splash-card {
-      width: 136px;
-      height: 136px;
-      padding: 16px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 24px;
-      border: 1.2px solid rgba(255, 255, 255, 0.16);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-sizing: border-box;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-    .splash-logo {
-      width: 104px;
-      height: 104px;
-      object-fit: contain;
-      border-radius: 14px;
-    }
-    .splash-title {
-      margin-top: 24px;
-      font-size: 24px;
-      font-weight: 700;
-      color: #FFFFFF;
-      letter-spacing: 0.6px;
-    }
-    .splash-slogan {
-      margin-top: 8px;
-      font-size: 13.5px;
-      font-weight: 500;
-      color: rgba(255, 255, 255, 0.68);
-      letter-spacing: 0.3px;
-    }
-    .splash-spinner {
-      margin-top: 32px;
-      width: 24px;
-      height: 24px;
-      border: 2.4px solid rgba(56, 189, 248, 0.2);
-      border-top-color: #38BDF8;
-      border-radius: 50%;
-      animation: spin 0.85s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 
 <body>
-  <div id="splash-root">
-    <div class="splash-card">
-      <img src="logo.png" alt="Aptech Network Hub Logo" class="splash-logo" onerror="this.src='icons/Icon-192.png'" />
-    </div>
-    <div class="splash-title">Aptech Network Hub</div>
-    <div class="splash-slogan">Smart IT Infrastructure & Lab Management</div>
-    <div class="splash-spinner"></div>
-  </div>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 
