@@ -252,7 +252,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         targetKey: _chatFabKey,
         title: "Live IT Support Group Chat",
         description:
-            "Tap here anytime to report an issue or update ticket statuses in the offline-cached IT Hub Chat.",
+            "Tap here anytime to report an issue or update ticket statuses in the offline-cached Network Hub Chat.",
         icon: Icons.forum_rounded,
       ),
     ];
@@ -271,7 +271,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ? "Super Admin Console"
                         : isAdmin
                             ? "Admin Workspace"
-                            : "IT Support Hub",
+                            : "Network Hub",
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -844,7 +844,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             key: _chatFabKey,
             onPressed: () => Navigator.pushNamed(context, Routes.chats),
             icon: const Icon(Icons.chat_bubble_rounded),
-            label: const Text("IT Hub Chat"),
+            label: const Text("Network Hub Chat"),
           ),
         ),
 

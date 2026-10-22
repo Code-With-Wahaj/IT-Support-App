@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Clean, frosted glass logo container for Aptech IT Hub.
+/// Clean, frosted glass logo container for Aptech Network Hub.
 /// Matches the glass style of the Aptech logo across splash and auth screens.
 class ExpressiveAppLogo extends StatelessWidget {
   final double size;
@@ -45,7 +45,7 @@ class ExpressiveAppLogo extends StatelessWidget {
           fit: BoxFit.contain,
           gaplessPlayback: true,
           filterQuality: FilterQuality.medium,
-          semanticLabel: 'Aptech IT Hub Logo',
+          semanticLabel: 'Aptech Network Hub Logo',
           errorBuilder: (_, __, ___) =>
               Icon(Icons.hub_rounded, size: size, color: Colors.white),
         ),

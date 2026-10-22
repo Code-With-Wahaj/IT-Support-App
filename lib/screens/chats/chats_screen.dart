@@ -7,7 +7,7 @@ import '../../services/complains_servcie.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/responsive_utils.dart';
 
-/// Offline-Cached & Chip-Filtered IT Hub Group Chat.
+/// Offline-Cached & Chip-Filtered Network Hub Group Chat.
 /// Reads directly from AppDataProvider's local cache + single delta listener
 /// so opening or chatting NEVER re-fetches the whole Firestore collection!
 class ChatScreen extends StatefulWidget {
@@ -477,7 +477,7 @@ class _ChatScreenState extends State<ChatScreen> {
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("IT Hub Dispatch Chat", style: TextStyle(fontSize: 17)),
+            Text("Network Hub Dispatch Chat", style: TextStyle(fontSize: 17)),
             Text(
               "Instant 3s Dispatch • Auto Lab & Issue Recognition",
               style: TextStyle(fontSize: 11, color: AppTheme.accentGlow),

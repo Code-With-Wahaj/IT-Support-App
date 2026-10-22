@@ -157,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                   const SizedBox(height: 12),
                                   const Text(
-                                    "Sign In to IT Hub",
+                                    "Sign In to Network Hub",
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 24,
