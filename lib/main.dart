@@ -37,6 +37,7 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             title: 'Aptech Network Hub',
+            color: AppTheme.primaryColor,
             theme: AppTheme.lightTheme,
             scrollBehavior: const NoScrollbarBehavior(),
             initialRoute: Routes.splash,
