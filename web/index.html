@@ -30,20 +30,26 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png" />
 
+  <meta name="theme-color" content="#0F172A">
+  <meta name="color-scheme" content="dark">
+
   <title>Aptech Network Hub</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
-    body {
+    html, body, flutter-view, flt-glass-pane {
       margin: 0;
       padding: 0;
-      background-color: #0F172A;
-      height: 100vh;
-      width: 100vw;
+      background-color: #0F172A !important;
+      color-scheme: dark;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+    body {
       display: flex;
       justify-content: center;
       align-items: center;
-      overflow: hidden;
     }
     .initial-preloader {
       display: flex;
