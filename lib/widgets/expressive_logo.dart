@@ -44,8 +44,6 @@ class ExpressiveAppLogo extends StatelessWidget {
           height: size,
           fit: BoxFit.contain,
           gaplessPlayback: true,
-          cacheWidth: (size * 2.5).toInt(),
-          cacheHeight: (size * 2.5).toInt(),
           filterQuality: FilterQuality.medium,
           semanticLabel: 'Aptech IT Hub Logo',
           errorBuilder: (_, __, ___) =>
