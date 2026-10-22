@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +20,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  Timer? _navigationTimer;
 
   @override
   void initState() {
@@ -25,7 +28,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 1400),
     );
 
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
@@ -37,16 +40,21 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    Future.delayed(const Duration(milliseconds: 2600), () async {
+    _navigationTimer = Timer(const Duration(milliseconds: 2000), () async {
       if (!mounted) return;
+      // Prevent redundant navigation if user is already on another screen (e.g. login)
+      if (ModalRoute.of(context)?.isCurrent != true) return;
+
       final prefs = await SharedPreferences.getInstance();
       final hasSeenOnboarding = prefs.getBool('has_seen_onboarding_v2') ?? false;
       final user = FirebaseAuth.instance.currentUser;
 
       if (!mounted) return;
+      if (ModalRoute.of(context)?.isCurrent != true) return;
+
       if (user != null) {
         Navigator.pushReplacementNamed(context, Routes.dashboard);
-      } else if (!hasSeenOnboarding) {
+      } else if (!hasSeenOnboarding && !kIsWeb) {
         Navigator.pushReplacementNamed(context, Routes.onboarding);
       } else {
         Navigator.pushReplacementNamed(context, Routes.login);
@@ -56,6 +64,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

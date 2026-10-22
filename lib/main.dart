@@ -40,7 +40,6 @@ class MyApp extends StatelessWidget {
             color: AppTheme.primaryColor,
             theme: AppTheme.lightTheme,
             scrollBehavior: const NoScrollbarBehavior(),
-            initialRoute: Routes.splash,
             onGenerateRoute: AppRouteGuard.generateRoute,
           );
         },
