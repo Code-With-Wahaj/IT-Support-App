@@ -13,7 +13,7 @@
 -->
 
     <application
-        android:label="Aptech IT Support"
+        android:label="Aptech Network Hub"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         >
