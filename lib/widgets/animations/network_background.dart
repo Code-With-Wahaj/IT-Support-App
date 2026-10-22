@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
-/// Drop-in upgraded IT Hub background featuring:
+/// Drop-in upgraded Network Hub background featuring:
 /// - Multi-layered ambient cyber-nebula gradients
 /// - Subtle architectural blueprint grid with crosshair markers
 /// - Multi-tier topology nodes (Core Server Hubs, Lab Terminals, Endpoints)

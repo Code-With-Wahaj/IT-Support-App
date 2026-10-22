@@ -22,7 +22,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       badge: "LAB COMPLAINTS",
       title: "Report a lab issue in seconds",
       description:
-          "Describe the problem with your lab or PC. IT Hub identifies the lab and issue, then notifies the assigned technician.",
+          "Describe the problem with your lab or PC. Network Hub identifies the lab and issue, then notifies the assigned technician.",
       lottieAsset: "assets/lottie/it_hub_lottie.json",
       fallbackIcon: Icons.support_agent_rounded,
     ),
