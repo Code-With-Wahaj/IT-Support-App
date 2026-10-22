@@ -8,6 +8,7 @@ import 'package:aptech_it_support/widgets/animations/network_background.dart';
 import 'package:aptech_it_support/widgets/animations/glass_card.dart';
 import 'package:aptech_it_support/theme/app_theme.dart';
 import 'package:aptech_it_support/utils/responsive_utils.dart';
+import 'package:aptech_it_support/widgets/expressive_logo.dart';
 import 'package:sizer/sizer.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -46,6 +47,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           ),
         );
     _entryAnimationController.forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    precacheImage(const AssetImage('assets/aptech_logo.png'), context);
+    precacheImage(const AssetImage('assets/logo.png'), context);
   }
 
   @override
@@ -162,16 +170,49 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
           SafeArea(
             child: Column(
               children: [
-                SizedBox(height: ResponsiveUtils.isMobile(context) ? 4.h : 3.h),
+                const SizedBox(height: 20),
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: ResponsiveWrapper(
-                    maxWidth: 500,
+                    maxWidth: 480,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildLogo('assets/aptech_logo.png', context),
-                        _buildLogo('assets/logo.png', context),
+                        Container(
+                          height: 52,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.16),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Image.asset(
+                            'assets/aptech_logo.png',
+                            height: 32,
+                            fit: BoxFit.contain,
+                            gaplessPlayback: true,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.school, color: Colors.white),
+                          ),
+                        ),
+                        const ExpressiveAppLogo(
+                          size: 34,
+                          padding: 8,
+                          borderRadius: 16,
+                        ),
                       ],
                     ),
                   ),
@@ -204,31 +245,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                       "FORGOT PASSWORD",
                                       style: TextStyle(
                                         color: AppTheme.accentColor,
-                                        fontSize: 10.sp,
+                                        fontSize: 11,
                                         letterSpacing: 2,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    SizedBox(height: 1.h),
-                                    Text(
+                                    const SizedBox(height: 8),
+                                    const Text(
                                       "Recover Your Account",
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 20.sp,
+                                        fontSize: 22,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    SizedBox(height: 2.h),
+                                    const SizedBox(height: 8),
                                     Text(
                                       "Enter your email address and we'll send you a link to reset your password.",
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: Colors.white.withOpacity(0.7),
-                                        fontSize: 12.sp,
+                                        fontSize: 13,
                                         height: 1.5,
                                       ),
                                     ),
-                                    SizedBox(height: 4.h),
+                                    const SizedBox(height: 24),
                                     CustomTextField(
                                       label: "Email",
                                       hint: "Enter your registered email",
@@ -271,32 +312,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLogo(String asset, BuildContext context) {
-    final size = ResponsiveUtils.isMobile(context) ? 14.w : 60.0;
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.16),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.asset(asset, width: size, height: size, fit: BoxFit.contain),
       ),
     );
   }

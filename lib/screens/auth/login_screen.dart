@@ -41,6 +41,13 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    precacheImage(const AssetImage('assets/aptech_logo.png'), context);
+    precacheImage(const AssetImage('assets/logo.png'), context);
+  }
+
+  @override
   void dispose() {
     _entryAnimationController.dispose();
     emailC.dispose();
@@ -72,10 +79,14 @@ class _LoginScreenState extends State<LoginScreen>
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          height: 52,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.16),
                               width: 1.2,
@@ -88,19 +99,20 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ],
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.asset(
-                              'assets/aptech_logo.png',
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.school, color: Colors.white),
-                            ),
+                          child: Image.asset(
+                            'assets/aptech_logo.png',
+                            height: 32,
+                            fit: BoxFit.contain,
+                            gaplessPlayback: true,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.school, color: Colors.white),
                           ),
                         ),
-                        const ExpressiveAppLogo(size: 48),
+                        const ExpressiveAppLogo(
+                          size: 34,
+                          padding: 8,
+                          borderRadius: 16,
+                        ),
                       ],
                     ),
                   ),

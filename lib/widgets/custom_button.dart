@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 
 class CustomButton extends StatelessWidget {
   final String text;
@@ -16,9 +17,10 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = ResponsiveUtils.isDesktop(context);
     return SizedBox(
       width: double.infinity,
-      height: 7.h,
+      height: isDesktop ? 48.0 : 7.h.clamp(46.0, 52.0),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: isPrimary
@@ -27,14 +29,14 @@ class CustomButton extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
         onPressed: onTap,
         child: Text(
           text,
           style: TextStyle(
-            fontSize: 16.sp,
+            fontSize: isDesktop ? 15.0 : 16.sp.clamp(14.0, 16.0),
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
