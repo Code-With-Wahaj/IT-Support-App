@@ -63,6 +63,12 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    precacheImage(const AssetImage('assets/logo.png'), context);
+  }
+
+  @override
   void dispose() {
     _navigationTimer?.cancel();
     _controller.dispose();
