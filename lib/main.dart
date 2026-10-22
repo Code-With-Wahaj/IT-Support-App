@@ -30,13 +30,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => AppDataProvider()..initializeCache()),
         ChangeNotifierProvider(create: (_) => FilterComplaintsProvider()),
-        ChangeNotifierProvider(create: (_) => LabProvider()..fetchLabs()),
+        ChangeNotifierProvider(create: (_) => LabProvider()),
       ],
       child: Sizer(
         builder: (context, orientation, deviceType) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'Aptech IT Support Hub',
+            title: 'Aptech Network Hub',
             theme: AppTheme.lightTheme,
             scrollBehavior: const NoScrollbarBehavior(),
             initialRoute: Routes.splash,

@@ -21,6 +21,16 @@ class _LabListScreenState extends State<LabListScreen> {
   String _searchQuery = "";
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<LabProvider>().fetchLabs();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final provider = context.watch<LabProvider>();
     final appData = context.watch<AppDataProvider>();
