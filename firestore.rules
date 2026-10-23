@@ -59,9 +59,8 @@ service cloud.firestore {
     // USERS COLLECTION RBAC (Zero unauthorized read, zero privilege escalation)
     // =========================================================================
     match /users/{userId} {
-      // Normal users can ONLY read their own profile.
-      // Admins & IT Technicians can list and read profiles for assignment & broadcasting!
-      allow read: if isOwner(userId) || isTechnician();
+      // Authenticated users can list and read profiles for technician assignment & messaging
+      allow read: if isAuthenticated();
 
       // Account Creation:
       // Normal signup: Can ONLY create their own doc with role 'Faculty' or 'IT Technician',
@@ -95,19 +94,19 @@ service cloud.firestore {
     // COMPLAINTS COLLECTION RBAC
     // =========================================================================
     match /complaints/{complaintId} {
-      // Must be authenticated and approved to view complaints
-      allow read: if isApproved();
+      // Authenticated users can view complaints & group chat messages
+      allow read: if isAuthenticated();
 
-      // Complaint Creation:
-      // facultyId MUST strictly match the authenticated user's uid (prevents impersonation)
-      allow create: if isApproved() && (
+      // Complaint / Message Creation:
+      // Any authenticated user can submit a complaint/message with their own uid, or Admins for any
+      allow create: if isAuthenticated() && (
         request.resource.data.facultyId == request.auth.uid || isAdmin()
       );
 
       // Complaint Updates:
       // Technicians and Admins can update status, assignment, resolution notes, timeTaken.
-      // Faculty can only update if they are the author and ticket is not resolved.
-      allow update: if isApproved() && (
+      // Authors can update their own ticket if not resolved.
+      allow update: if isAuthenticated() && (
         isTechnician() ||
         (resource.data.facultyId == request.auth.uid && resource.data.status != 'Resolved')
       );
